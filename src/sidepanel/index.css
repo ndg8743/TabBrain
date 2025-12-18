@@ -1,0 +1,12 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+body {
+  @apply bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100;
+  min-width: 320px;
+}
+
+#root {
+  @apply min-h-screen;
+}
