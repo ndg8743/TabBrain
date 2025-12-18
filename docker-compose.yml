@@ -1,0 +1,27 @@
+version: '3.8'
+
+services:
+  test:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    volumes:
+      - ./test-results:/app/test-results
+      - ./playwright-report:/app/playwright-report
+    environment:
+      - CI=true
+    shm_size: '2gb'
+
+  # Optional: Run with visible browser for debugging
+  test-headed:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    volumes:
+      - ./test-results:/app/test-results
+      - ./playwright-report:/app/playwright-report
+    environment:
+      - CI=true
+      - HEADED=true
+    shm_size: '2gb'
+    command: npm run test:e2e -- --headed
