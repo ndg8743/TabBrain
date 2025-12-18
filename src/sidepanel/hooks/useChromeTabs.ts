@@ -137,3 +137,52 @@ export function useTabGroups() {
 
   return { createGroups, sortByDomain, loading, error }
 }
+
+export interface MergeSuggestion {
+  sourceId: number
+  targetId: number
+  overlap: number
+}
+
+export function useWindowMerge() {
+  const [suggestions, setSuggestions] = useState<MergeSuggestion[]>([])
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  const findSuggestions = useCallback(async () => {
+    setLoading(true)
+    setError(null)
+    try {
+      const response = await sendMessage<MergeSuggestion[]>('FIND_MERGE_SUGGESTIONS')
+      if (response.success && response.data) {
+        setSuggestions(response.data)
+      } else {
+        setError(response.error ?? 'Failed to find merge suggestions')
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Unknown error')
+    }
+    setLoading(false)
+  }, [])
+
+  const mergeWindows = useCallback(async (sourceId: number, targetId: number) => {
+    setLoading(true)
+    setError(null)
+    try {
+      const response = await sendMessage('MERGE_WINDOWS', { sourceId, targetId })
+      if (response.success) {
+        setSuggestions(prev => prev.filter(s => s.sourceId !== sourceId))
+      } else {
+        setError(response.error ?? 'Failed to merge windows')
+      }
+      return response
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Unknown error')
+      return { success: false, error: String(err) }
+    } finally {
+      setLoading(false)
+    }
+  }, [])
+
+  return { suggestions, loading, error, findSuggestions, mergeWindows }
+}

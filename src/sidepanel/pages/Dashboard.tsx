@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react'
 import { ActionCard } from '../components'
-import { useTabs, useDuplicateTabs, useLLMConfig } from '../hooks'
+import { useTabs, useDuplicateTabs, useLLMConfig, useWindows } from '../hooks'
 
-export type View = 'dashboard' | 'duplicates' | 'windows' | 'bookmarks' | 'settings'
+export type View = 'dashboard' | 'duplicates' | 'windows' | 'merge' | 'bookmarks' | 'settings'
 
 interface DashboardProps {
   onNavigate: (view: View) => void
@@ -10,6 +10,7 @@ interface DashboardProps {
 
 export function Dashboard({ onNavigate }: DashboardProps) {
   const { tabs } = useTabs()
+  const { windows } = useWindows()
   const { duplicates, scan } = useDuplicateTabs()
   const { isConfigured } = useLLMConfig()
   const [scanned, setScanned] = useState(false)
@@ -34,7 +35,7 @@ export function Dashboard({ onNavigate }: DashboardProps) {
           <p className="text-yellow-600 dark:text-yellow-300 mt-1">
             Set up your API provider in{' '}
             <button
-              onClick={() => chrome.runtime.openOptionsPage()}
+              onClick={() => onNavigate('settings')}
               className="underline hover:no-underline"
             >
               settings
@@ -61,16 +62,23 @@ export function Dashboard({ onNavigate }: DashboardProps) {
       />
 
       <ActionCard
+        title="Merge Windows"
+        description="Combine windows with overlapping content"
+        icon={<MergeIcon />}
+        badge={windows.length > 1 ? windows.length : undefined}
+        onClick={() => onNavigate('merge')}
+      />
+
+      <ActionCard
         title="Clean Bookmarks"
         description="Organize and rename bookmark folders"
         icon={<BookmarkIcon />}
         onClick={() => onNavigate('bookmarks')}
-        disabled={!isConfigured}
       />
 
       <div className="pt-4 border-t border-gray-200 dark:border-gray-700">
         <p className="text-xs text-gray-400 text-center">
-          {tabs.length} tabs open
+          {tabs.length} tabs in {windows.length} windows
         </p>
       </div>
     </div>
@@ -90,6 +98,14 @@ function WindowIcon() {
   return (
     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 5a1 1 0 011-1h14a1 1 0 011 1v2a1 1 0 01-1 1H5a1 1 0 01-1-1V5zM4 13a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H5a1 1 0 01-1-1v-6zM16 13a1 1 0 011-1h2a1 1 0 011 1v6a1 1 0 01-1 1h-2a1 1 0 01-1-1v-6z" />
+    </svg>
+  )
+}
+
+function MergeIcon() {
+  return (
+    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
     </svg>
   )
 }

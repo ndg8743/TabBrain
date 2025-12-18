@@ -1,3 +1,6 @@
 export { Dashboard, type View } from './Dashboard'
 export { DuplicateFinder } from './DuplicateFinder'
 export { WindowOrganizer } from './WindowOrganizer'
+export { WindowMerge } from './WindowMerge'
+export { BookmarkCleaner } from './BookmarkCleaner'
+export { Settings } from './Settings'

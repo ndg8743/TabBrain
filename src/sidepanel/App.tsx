@@ -1,5 +1,14 @@
 import { useState, useEffect } from 'react'
-import { Dashboard, DuplicateFinder, WindowOrganizer, type View } from './pages'
+import { ErrorBoundary } from './components'
+import {
+  Dashboard,
+  DuplicateFinder,
+  WindowOrganizer,
+  WindowMerge,
+  BookmarkCleaner,
+  Settings,
+  type View,
+} from './pages'
 
 export default function App() {
   const [view, setView] = useState<View>('dashboard')
@@ -19,35 +28,61 @@ export default function App() {
   }
 
   return (
-    <div className="flex flex-col h-screen">
-      <header className="flex items-center justify-between px-4 py-3 border-b border-gray-200 dark:border-gray-700">
-        <h1 className="text-lg font-semibold text-primary-600">TabBrain</h1>
-        <button
-          onClick={() => chrome.runtime.openOptionsPage()}
-          className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800"
-          title="Settings"
-        >
-          <SettingsIcon />
-        </button>
-      </header>
+    <ErrorBoundary>
+      <div className="flex flex-col h-screen">
+        <header className="flex items-center justify-between px-4 py-3 border-b border-gray-200 dark:border-gray-700">
+          <button
+            onClick={() => setView('dashboard')}
+            className="text-lg font-semibold text-primary-600 hover:text-primary-700"
+          >
+            TabBrain
+          </button>
+          <button
+            onClick={() => setView('settings')}
+            className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800"
+            title="Settings"
+          >
+            <SettingsIcon />
+          </button>
+        </header>
 
-      <main className="flex-1 overflow-y-auto p-4">
-        {!hasTabsPermission ? (
-          <PermissionRequest onRequest={requestPermissions} />
-        ) : view === 'dashboard' ? (
-          <Dashboard onNavigate={setView} />
-        ) : view === 'duplicates' ? (
-          <DuplicateFinder onBack={() => setView('dashboard')} />
-        ) : view === 'windows' ? (
-          <WindowOrganizer onBack={() => setView('dashboard')} />
-        ) : view === 'bookmarks' ? (
-          <ComingSoon name="Bookmark Cleaner" onBack={() => setView('dashboard')} />
-        ) : (
-          <Dashboard onNavigate={setView} />
-        )}
-      </main>
-    </div>
+        <main className="flex-1 overflow-y-auto p-4">
+          <ErrorBoundary>
+            {!hasTabsPermission ? (
+              <PermissionRequest onRequest={requestPermissions} />
+            ) : (
+              <ViewRenderer view={view} onNavigate={setView} />
+            )}
+          </ErrorBoundary>
+        </main>
+      </div>
+    </ErrorBoundary>
   )
+}
+
+function ViewRenderer({
+  view,
+  onNavigate,
+}: {
+  view: View
+  onNavigate: (view: View) => void
+}) {
+  switch (view) {
+    case 'dashboard':
+      return <Dashboard onNavigate={onNavigate} />
+    case 'duplicates':
+      return <DuplicateFinder onBack={() => onNavigate('dashboard')} />
+    case 'windows':
+      return <WindowOrganizer onBack={() => onNavigate('dashboard')} />
+    case 'merge':
+      return <WindowMerge onBack={() => onNavigate('dashboard')} />
+    case 'bookmarks':
+      return <BookmarkCleaner onBack={() => onNavigate('dashboard')} />
+    case 'settings':
+      return <Settings onBack={() => onNavigate('dashboard')} />
+    default:
+      return <Dashboard onNavigate={onNavigate} />
+  }
 }
 
 function PermissionRequest({ onRequest }: { onRequest: () => void }) {
@@ -70,25 +105,6 @@ function PermissionRequest({ onRequest }: { onRequest: () => void }) {
   )
 }
 
-function ComingSoon({ name, onBack }: { name: string; onBack: () => void }) {
-  return (
-    <div className="space-y-4">
-      <div className="flex items-center gap-2">
-        <button
-          onClick={onBack}
-          className="p-1 rounded hover:bg-gray-100 dark:hover:bg-gray-800"
-        >
-          <BackIcon />
-        </button>
-        <h2 className="text-lg font-medium">{name}</h2>
-      </div>
-      <div className="text-center py-8 text-gray-500">
-        Coming soon...
-      </div>
-    </div>
-  )
-}
-
 function SettingsIcon() {
   return (
     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -102,14 +118,6 @@ function LockIcon() {
   return (
     <svg className="w-8 h-8 text-primary-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-    </svg>
-  )
-}
-
-function BackIcon() {
-  return (
-    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
     </svg>
   )
 }

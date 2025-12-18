@@ -1,13 +1,13 @@
 import type { TabInfo, OperationProgress } from '@/types/domain'
 import { getAllTabs, getTabsInWindow, closeTabs, groupTabs, sortTabsByDomain } from '@/lib/chrome/tabs'
 import { getAllWindows, mergeWindows } from '@/lib/chrome/windows'
-import { getBookmarkTree, getAllBookmarkUrls, renameBookmark } from '@/lib/chrome/bookmarks'
+import { getBookmarkTree, getAllBookmarkUrls, getAllFolders, renameBookmark, removeBookmark, isGenericFolderName, getBookmarkChildren } from '@/lib/chrome/bookmarks'
 import { getCategoryColor } from '@/lib/chrome/tab-groups'
 import { getLLMConfig } from '@/lib/chrome/storage'
 import { findDuplicateTabs, findDuplicateBookmarks } from '@/lib/algorithms/clustering'
 import { domainOverlap } from '@/lib/algorithms/similarity'
 import { OpenAICompatibleProvider } from '@/lib/llm/openai-compatible'
-import { categorizeTabs, detectWindowTopic } from '@/lib/llm/batch-processor'
+import { categorizeTabs, detectWindowTopic, suggestFolderName } from '@/lib/llm/batch-processor'
 import { logger } from '@/lib/utils/logger'
 
 // Message types
@@ -21,8 +21,12 @@ export type MessageType =
   | 'DETECT_WINDOW_TOPIC'
   | 'FIND_MERGE_SUGGESTIONS'
   | 'MERGE_WINDOWS'
+  | 'GET_BOOKMARK_TREE'
   | 'FIND_DUPLICATE_BOOKMARKS'
   | 'RENAME_BOOKMARK'
+  | 'REMOVE_BOOKMARKS'
+  | 'GET_FOLDER_SUGGESTIONS'
+  | 'CHECK_DEAD_LINKS'
   | 'CATEGORIZE_TABS'
   | 'GET_LLM_CONFIG'
   | 'TEST_LLM_CONNECTION'
@@ -147,6 +151,10 @@ const handlers: Partial<Record<MessageType, MessageHandler>> = {
     return { merged: true }
   },
 
+  GET_BOOKMARK_TREE: async () => {
+    return getBookmarkTree()
+  },
+
   FIND_DUPLICATE_BOOKMARKS: async () => {
     const tree = await getBookmarkTree()
     const bookmarks = getAllBookmarkUrls(tree)
@@ -156,6 +164,68 @@ const handlers: Partial<Record<MessageType, MessageHandler>> = {
   RENAME_BOOKMARK: async (payload: { id: string; title: string }) => {
     await renameBookmark(payload.id, payload.title)
     return { renamed: true }
+  },
+
+  REMOVE_BOOKMARKS: async (payload: { ids: string[] }) => {
+    for (const id of payload.ids) {
+      await removeBookmark(id)
+    }
+    return { removed: payload.ids.length }
+  },
+
+  GET_FOLDER_SUGGESTIONS: async () => {
+    const config = await getLLMConfig()
+    const tree = await getBookmarkTree()
+    const folders = getAllFolders(tree)
+
+    // Find folders with generic names
+    const genericFolders = folders.filter(f => isGenericFolderName(f.title))
+
+    if (!config || genericFolders.length === 0) {
+      return []
+    }
+
+    const provider = new OpenAICompatibleProvider(config)
+    const suggestions = []
+
+    for (const folder of genericFolders.slice(0, 10)) {
+      const children = await getBookmarkChildren(folder.id)
+      const bookmarksWithUrls = children.filter(c => c.url)
+
+      if (bookmarksWithUrls.length === 0) continue
+
+      const result = await suggestFolderName(provider, folder.title, bookmarksWithUrls)
+      if (result) {
+        suggestions.push({
+          folder,
+          suggestedName: result.name,
+          confidence: 0.8,
+        })
+      }
+    }
+
+    return suggestions
+  },
+
+  CHECK_DEAD_LINKS: async () => {
+    const tree = await getBookmarkTree()
+    const bookmarks = getAllBookmarkUrls(tree)
+    const deadLinks = []
+
+    for (const bookmark of bookmarks.slice(0, 50)) {
+      if (!bookmark.url) continue
+      try {
+        await fetch(bookmark.url, {
+          method: 'HEAD',
+          mode: 'no-cors',
+        })
+        // no-cors mode always returns opaque response, so we check for network errors
+      } catch {
+        deadLinks.push(bookmark)
+      }
+    }
+
+    return deadLinks
   },
 
   CATEGORIZE_TABS: async (payload: {
