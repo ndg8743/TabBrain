@@ -176,6 +176,86 @@ export function Settings({ onBack }: SettingsProps) {
           )}
         </motion.div>
 
+        {/* OpenWebUI Setup Guide */}
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.07 }}
+          className="glass-card p-4"
+        >
+          <div className="flex items-center gap-3 mb-4">
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-500 to-blue-600 flex items-center justify-center">
+              <OpenWebUIIcon className="w-5 h-5 text-white" />
+            </div>
+            <div>
+              <h3 className="font-medium text-white">OpenWebUI Setup</h3>
+              <p className="text-xs text-surface-500">Configuration guide for Open WebUI</p>
+            </div>
+          </div>
+
+          <div className="space-y-3">
+            <div className="p-3 rounded-xl bg-surface-800/50">
+              <p className="text-xs font-medium text-surface-400 uppercase tracking-wider mb-2">Base URL</p>
+              <code className="block text-sm text-brand-400 font-mono bg-surface-900/50 px-3 py-2 rounded-lg">
+                https://your_url/api
+              </code>
+              <p className="text-xs text-surface-500 mt-2">
+                Replace <span className="text-brand-400 font-mono">your_url</span> with your OpenWebUI domain
+              </p>
+            </div>
+
+            <div className="p-3 rounded-xl bg-surface-800/50">
+              <p className="text-xs font-medium text-surface-400 uppercase tracking-wider mb-2">Provider</p>
+              <code className="block text-sm text-emerald-400 font-mono bg-surface-900/50 px-3 py-2 rounded-lg">
+                openai
+              </code>
+              <p className="text-xs text-surface-500 mt-2">
+                OpenWebUI uses OpenAI-compatible API format
+              </p>
+            </div>
+
+            <div className="p-3 rounded-xl bg-surface-800/50">
+              <p className="text-xs font-medium text-surface-400 uppercase tracking-wider mb-2">API Key</p>
+              <code className="block text-sm text-amber-400 font-mono bg-surface-900/50 px-3 py-2 rounded-lg">
+                sk-xxxxxxxxxxxxxxxx
+              </code>
+              <p className="text-xs text-surface-500 mt-2">
+                Get your API key from OpenWebUI Settings → Account → API Keys
+              </p>
+            </div>
+
+            <div className="p-3 rounded-xl bg-surface-800/50">
+              <p className="text-xs font-medium text-surface-400 uppercase tracking-wider mb-2">Model Examples</p>
+              <div className="space-y-1.5">
+                <code className="block text-sm text-violet-400 font-mono bg-surface-900/50 px-3 py-1.5 rounded-lg">
+                  llama3.1:70b
+                </code>
+                <code className="block text-sm text-violet-400 font-mono bg-surface-900/50 px-3 py-1.5 rounded-lg">
+                  qwen2.5:72b
+                </code>
+                <code className="block text-sm text-violet-400 font-mono bg-surface-900/50 px-3 py-1.5 rounded-lg">
+                  mistral-large
+                </code>
+              </div>
+              <p className="text-xs text-surface-500 mt-2">
+                Use the model name as shown in your OpenWebUI models list
+              </p>
+            </div>
+
+            <motion.button
+              onClick={() => chrome.runtime.openOptionsPage()}
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+              className="btn-secondary w-full text-sm"
+            >
+              <span className="flex items-center justify-center gap-2">
+                <SettingsIcon className="w-4 h-4" />
+                Open Full Settings
+              </span>
+            </motion.button>
+          </div>
+        </motion.div>
+
         {/* Sorting Defaults */}
         {!prefsLoading && (
           <motion.div
@@ -669,6 +749,14 @@ function InfoIcon({ className }: { className?: string }) {
   return (
     <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+    </svg>
+  )
+}
+
+function OpenWebUIIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9" />
     </svg>
   )
 }
