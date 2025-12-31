@@ -11,6 +11,7 @@ interface TabListProps {
   showCategory?: boolean
   categories?: Map<number, string>
   subtopics?: Map<number, string | undefined>
+  enableSwitchOnDoubleClick?: boolean
 }
 
 const categoryColors: Record<string, string> = {
@@ -34,6 +35,7 @@ export function TabList({
   showCategory = false,
   categories,
   subtopics,
+  enableSwitchOnDoubleClick = true,
 }: TabListProps) {
   const toggleSelection = (id: number) => {
     if (!onSelectionChange) return
@@ -121,6 +123,7 @@ export function TabList({
                 showWindow={showWindow}
                 category={showCategory ? categories?.get(tab.id) : undefined}
                 subtopic={subtopics?.get(tab.id)}
+                enableSwitchOnDoubleClick={enableSwitchOnDoubleClick}
               />
             </motion.div>
           ))}
@@ -138,6 +141,7 @@ interface TabItemProps {
   showWindow: boolean
   category?: string
   subtopic?: string
+  enableSwitchOnDoubleClick: boolean
 }
 
 function TabItem({
@@ -148,15 +152,30 @@ function TabItem({
   showWindow,
   category,
   subtopic,
+  enableSwitchOnDoubleClick,
 }: TabItemProps) {
   const [imgError, setImgError] = useState(false)
   const domain = getDomain(tab.url)
+
+  const handleDoubleClick = async () => {
+    if (!enableSwitchOnDoubleClick) return
+    try {
+      // Activate the tab
+      await chrome.tabs.update(tab.id, { active: true })
+      // Focus the window containing the tab
+      await chrome.windows.update(tab.windowId, { focused: true })
+    } catch (err) {
+      console.error('Failed to switch to tab:', err)
+    }
+  }
 
   return (
     <motion.div
       whileHover={{ scale: 1.01, x: 2 }}
       whileTap={{ scale: 0.99 }}
       onClick={selectable ? onToggle : undefined}
+      onDoubleClick={handleDoubleClick}
+      title={enableSwitchOnDoubleClick ? 'Double-click to switch to this tab' : undefined}
       className={`
         flex items-center gap-3 p-3 rounded-xl transition-all cursor-pointer
         ${selected
