@@ -1,3 +1,5 @@
+![TabBrain Banner](public/banner.png)
+
 # TabBrain
 
 AI-powered Chrome extension for organizing browser tabs and bookmarks. Uses local or cloud LLMs to intelligently categorize, group, and clean up your browser chaos.
