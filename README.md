@@ -2,6 +2,19 @@
 
 AI-powered Chrome extension for organizing browser tabs and bookmarks. Uses local or cloud LLMs to intelligently categorize, group, and clean up your browser chaos.
 
+## Quick Start
+
+```bash
+npm install
+npm run build
+```
+
+1. Open `chrome://extensions` in Chrome
+2. Enable **Developer mode** (top right toggle)
+3. Click **Load unpacked** → select the `dist` folder
+4. Click the TabBrain icon to open the side panel
+5. Go to **Settings** to configure your LLM provider (Ollama, OpenAI, etc.)
+
 ![Chrome Extension](https://img.shields.io/badge/Chrome-Extension-green)
 ![Manifest V3](https://img.shields.io/badge/Manifest-V3-blue)
 ![TypeScript](https://img.shields.io/badge/TypeScript-5.7-blue)
