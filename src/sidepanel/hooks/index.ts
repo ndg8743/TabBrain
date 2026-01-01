@@ -11,3 +11,4 @@ export {
 } from './useLLM'
 export { useBookmarks, useDuplicateBookmarks, useFolderSuggestions, useDeadLinkChecker, useOrphanBookmarks, useLargeFolders } from './useBookmarks'
 export { usePreferences } from './usePreferences'
+export { usePerformanceMode } from './usePerformanceMode'

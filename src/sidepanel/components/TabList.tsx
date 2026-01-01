@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { motion, AnimatePresence } from 'motion/react'
 import type { TabInfo } from '@/types/domain'
+import { usePerformanceContext } from '../context'
 
 interface TabListProps {
   tabs: TabInfo[]
@@ -13,6 +14,9 @@ interface TabListProps {
   subtopics?: Map<number, string | undefined>
   enableSwitchOnDoubleClick?: boolean
 }
+
+// Large tab lists also benefit from reduced animations regardless of FPS
+const LARGE_LIST_THRESHOLD = 100
 
 const categoryColors: Record<string, string> = {
   Technology: 'bg-blue-500/20 text-blue-400 ring-blue-500/30',
@@ -37,6 +41,10 @@ export function TabList({
   subtopics,
   enableSwitchOnDoubleClick = true,
 }: TabListProps) {
+  // Use FPS-based performance detection from context, or enable for very large lists
+  const { performanceMode: fpsPerformanceMode } = usePerformanceContext()
+  const performanceMode = fpsPerformanceMode || tabs.length > LARGE_LIST_THRESHOLD
+
   const toggleSelection = (id: number) => {
     if (!onSelectionChange) return
 
@@ -106,15 +114,10 @@ export function TabList({
       )}
 
       <div className="space-y-1">
-        <AnimatePresence mode="popLayout">
-          {tabs.map((tab, index) => (
-            <motion.div
-              key={tab.id}
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, x: -10, height: 0 }}
-              transition={{ delay: index * 0.02 }}
-            >
+        {performanceMode ? (
+          // Performance mode: minimal animations for large lists
+          tabs.map((tab) => (
+            <div key={tab.id}>
               <TabItem
                 tab={tab}
                 selectable={selectable}
@@ -124,10 +127,36 @@ export function TabList({
                 category={showCategory ? categories?.get(tab.id) : undefined}
                 subtopic={subtopics?.get(tab.id)}
                 enableSwitchOnDoubleClick={enableSwitchOnDoubleClick}
+                performanceMode={performanceMode}
               />
-            </motion.div>
-          ))}
-        </AnimatePresence>
+            </div>
+          ))
+        ) : (
+          // Normal mode: full animations for smaller lists
+          <AnimatePresence mode="popLayout">
+            {tabs.map((tab, index) => (
+              <motion.div
+                key={tab.id}
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, x: -10, height: 0 }}
+                transition={{ delay: index * 0.02 }}
+              >
+                <TabItem
+                  tab={tab}
+                  selectable={selectable}
+                  selected={selectedIds.has(tab.id)}
+                  onToggle={() => toggleSelection(tab.id)}
+                  showWindow={showWindow}
+                  category={showCategory ? categories?.get(tab.id) : undefined}
+                  subtopic={subtopics?.get(tab.id)}
+                  enableSwitchOnDoubleClick={enableSwitchOnDoubleClick}
+                  performanceMode={false}
+                />
+              </motion.div>
+            ))}
+          </AnimatePresence>
+        )}
       </div>
     </div>
   )
@@ -142,6 +171,7 @@ interface TabItemProps {
   category?: string
   subtopic?: string
   enableSwitchOnDoubleClick: boolean
+  performanceMode: boolean
 }
 
 function TabItem({
@@ -153,6 +183,7 @@ function TabItem({
   category,
   subtopic,
   enableSwitchOnDoubleClick,
+  performanceMode,
 }: TabItemProps) {
   const [imgError, setImgError] = useState(false)
   const domain = getDomain(tab.url)
@@ -169,6 +200,29 @@ function TabItem({
     }
   }
 
+  const baseClasses = `
+    flex items-center gap-3 p-3 rounded-xl transition-all cursor-pointer
+    ${selected
+      ? 'bg-brand-500/10 ring-1 ring-brand-500/30'
+      : 'bg-surface-900/50 hover:bg-surface-800/70'
+    }
+  `
+
+  // Performance mode: use a simple div without motion animations
+  if (performanceMode) {
+    return (
+      <div
+        onClick={selectable ? onToggle : undefined}
+        onDoubleClick={handleDoubleClick}
+        title={enableSwitchOnDoubleClick ? 'Double-click to switch to this tab' : undefined}
+        className={baseClasses}
+      >
+        {renderTabContent()}
+      </div>
+    )
+  }
+
+  // Normal mode: full motion animations
   return (
     <motion.div
       whileHover={{ scale: 1.01, x: 2 }}
@@ -176,14 +230,15 @@ function TabItem({
       onClick={selectable ? onToggle : undefined}
       onDoubleClick={handleDoubleClick}
       title={enableSwitchOnDoubleClick ? 'Double-click to switch to this tab' : undefined}
-      className={`
-        flex items-center gap-3 p-3 rounded-xl transition-all cursor-pointer
-        ${selected
-          ? 'bg-brand-500/10 ring-1 ring-brand-500/30'
-          : 'bg-surface-900/50 hover:bg-surface-800/70'
-        }
-      `}
+      className={baseClasses}
     >
+      {renderTabContent()}
+    </motion.div>
+  )
+
+  function renderTabContent() {
+    return (
+      <>
       {selectable && (
         <div
           className={`w-5 h-5 rounded-md border-2 flex-shrink-0 flex items-center justify-center transition-all ${
@@ -193,13 +248,17 @@ function TabItem({
           }`}
         >
           {selected && (
-            <motion.div
-              initial={{ scale: 0 }}
-              animate={{ scale: 1 }}
-              transition={{ type: 'spring', stiffness: 500, damping: 30 }}
-            >
+            performanceMode ? (
               <CheckIcon className="w-3 h-3 text-white" />
-            </motion.div>
+            ) : (
+              <motion.div
+                initial={{ scale: 0 }}
+                animate={{ scale: 1 }}
+                transition={{ type: 'spring', stiffness: 500, damping: 30 }}
+              >
+                <CheckIcon className="w-3 h-3 text-white" />
+              </motion.div>
+            )
           )}
         </div>
       )}
@@ -255,8 +314,9 @@ function TabItem({
           </span>
         )}
       </div>
-    </motion.div>
-  )
+      </>
+    )
+  }
 }
 
 function getDomain(url: string): string {

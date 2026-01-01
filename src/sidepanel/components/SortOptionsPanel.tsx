@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { motion, AnimatePresence } from 'motion/react'
 import { sendMessage } from '@/background/message-handler'
 import type { SortOptions, SortBy, SortDirection } from '@/types/domain'
@@ -17,6 +17,16 @@ export function SortOptionsPanel({ windowId, onSortComplete }: SortOptionsPanelP
   const [groupSubdomains, setGroupSubdomains] = useState(false)
   const [sortState, setSortState] = useState<SortState>('idle')
   const [showTooltip, setShowTooltip] = useState(false)
+  const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  // Cleanup timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current)
+      }
+    }
+  }, [])
 
   // Load preferences from storage on mount
   useEffect(() => {
@@ -61,6 +71,13 @@ export function SortOptionsPanel({ windowId, onSortComplete }: SortOptionsPanelP
     savePreferences({ sortBy, sortDirection, groupSubdomains: newValue })
   }
 
+  const scheduleReset = (delay: number) => {
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current)
+    }
+    timeoutRef.current = setTimeout(() => setSortState('idle'), delay)
+  }
+
   const handleSortWindow = async () => {
     setSortState('sorting')
     try {
@@ -71,16 +88,16 @@ export function SortOptionsPanel({ windowId, onSortComplete }: SortOptionsPanelP
 
       if (response.success) {
         setSortState('success')
-        setTimeout(() => setSortState('idle'), 2000)
+        scheduleReset(2000)
         onSortComplete?.()
       } else {
         setSortState('error')
-        setTimeout(() => setSortState('idle'), 3000)
+        scheduleReset(3000)
       }
     } catch (error) {
       console.error('Sort failed:', error)
       setSortState('error')
-      setTimeout(() => setSortState('idle'), 3000)
+      scheduleReset(3000)
     }
   }
 
@@ -93,16 +110,16 @@ export function SortOptionsPanel({ windowId, onSortComplete }: SortOptionsPanelP
 
       if (response.success) {
         setSortState('success')
-        setTimeout(() => setSortState('idle'), 2000)
+        scheduleReset(2000)
         onSortComplete?.()
       } else {
         setSortState('error')
-        setTimeout(() => setSortState('idle'), 3000)
+        scheduleReset(3000)
       }
     } catch (error) {
       console.error('Sort all failed:', error)
       setSortState('error')
-      setTimeout(() => setSortState('idle'), 3000)
+      scheduleReset(3000)
     }
   }
 

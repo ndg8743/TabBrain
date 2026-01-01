@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'motion/react'
 import { ErrorBoundary, ToastProvider } from './components'
+import { PerformanceProvider } from './context'
 import {
   Dashboard,
   DuplicateFinder,
@@ -49,9 +50,10 @@ export default function App() {
   }
 
   return (
-    <ToastProvider>
-      <ErrorBoundary>
-        <div className="flex flex-col h-screen overflow-hidden">
+    <PerformanceProvider>
+      <ToastProvider>
+        <ErrorBoundary>
+          <div className="flex flex-col h-screen overflow-hidden">
           {/* Header */}
           <motion.header
             initial={{ y: -20, opacity: 0 }}
@@ -106,9 +108,10 @@ export default function App() {
               </AnimatePresence>
             </ErrorBoundary>
           </main>
-        </div>
-      </ErrorBoundary>
-    </ToastProvider>
+          </div>
+        </ErrorBoundary>
+      </ToastProvider>
+    </PerformanceProvider>
   )
 }
 
