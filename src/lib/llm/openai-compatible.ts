@@ -68,8 +68,8 @@ export class OpenAICompatibleProvider extends BaseLLMProvider {
 
       if (!response.ok) {
         const errorText = await response.text()
-        logger.error('OpenAI error response', { status: response.status, body: errorText })
-        
+        logger.error(`OpenAI API error ${response.status}: ${errorText.slice(0, 500)}`)
+
         // Check for duplicate tool names error
         if (errorText.includes('tools') && errorText.includes('unique')) {
           throw new LLMError(
@@ -77,7 +77,23 @@ export class OpenAICompatibleProvider extends BaseLLMProvider {
             'INVALID_CONFIG'
           )
         }
-        
+
+        // Check for model not found (404)
+        if (response.status === 404 || errorText.toLowerCase().includes('not found')) {
+          throw new LLMError(
+            `Model "${this.config.model}" not found. Check that the model name is correct and available on your API provider.`,
+            'MODEL_NOT_FOUND'
+          )
+        }
+
+        // Check for unauthorized (401)
+        if (response.status === 401 || errorText.toLowerCase().includes('unauthorized')) {
+          throw new LLMError(
+            'Unauthorized - check your API key is correct.',
+            'UNAUTHORIZED'
+          )
+        }
+
         throw new Error(`API error: ${response.status} ${errorText}`)
       }
 
@@ -108,6 +124,7 @@ export class OpenAICompatibleProvider extends BaseLLMProvider {
 
   async listModels(): Promise<string[]> {
     const url = this.getModelsUrl()
+    logger.debug(`Fetching models from: ${url}`)
 
     try {
       const response = await fetch(url, {
@@ -115,23 +132,32 @@ export class OpenAICompatibleProvider extends BaseLLMProvider {
       })
 
       if (!response.ok) {
+        const errorText = await response.text()
+        logger.warn(`Failed to list models (${response.status}): ${errorText.slice(0, 200)}`)
         return []
       }
 
       const data = await response.json()
+      logger.debug('Models response', JSON.stringify(data).slice(0, 500))
 
       // Handle Ollama's response format (uses 'models' array with 'name' field)
       if (data.models && Array.isArray(data.models)) {
-        return data.models.map((m: { name: string }) => m.name)
+        const models = data.models.map((m: { name: string }) => m.name)
+        logger.debug(`Found ${models.length} Ollama models`)
+        return models
       }
 
       // Handle OpenAI-compatible format (uses 'data' array with 'id' field)
       if (data.data && Array.isArray(data.data)) {
-        return data.data.map((m: { id: string }) => m.id)
+        const models = data.data.map((m: { id: string }) => m.id)
+        logger.debug(`Found ${models.length} OpenAI-compatible models`)
+        return models
       }
 
+      logger.warn('Unknown models response format')
       return []
-    } catch {
+    } catch (error) {
+      logger.error(`Failed to fetch models: ${error instanceof Error ? error.message : 'Unknown error'}`)
       return []
     }
   }
