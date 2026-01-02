@@ -42,6 +42,7 @@ export type MessageType =
   | 'CATEGORIZE_TABS'
   | 'GET_LLM_CONFIG'
   | 'TEST_LLM_CONNECTION'
+  | 'GET_AVAILABLE_MODELS'
   | 'FIND_ORPHAN_BOOKMARKS'
   | 'FIND_LARGE_FOLDERS'
   // Smart AI categorization
@@ -476,6 +477,25 @@ const handlers: Partial<Record<MessageType, MessageHandler>> = {
       const message = error instanceof Error ? error.message : 'Connection failed'
       logger.error('LLM connection test failed', { error: message })
       return { success: false, error: message }
+    }
+  },
+
+  GET_AVAILABLE_MODELS: async () => {
+    const config = await getLLMConfig()
+    if (!config) {
+      return { success: false, models: [], error: 'Not configured' }
+    }
+
+    const provider = new OpenAICompatibleProvider(config)
+
+    try {
+      const models = await provider.listModels()
+      logger.debug(`GET_AVAILABLE_MODELS returned ${models.length} models`)
+      return { success: true, models }
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Failed to fetch models'
+      logger.error('Failed to fetch models', { error: message })
+      return { success: false, models: [], error: message }
     }
   },
 }

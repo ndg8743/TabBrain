@@ -188,57 +188,56 @@ export function Settings({ onBack }: SettingsProps) {
               <OpenWebUIIcon className="w-5 h-5 text-white" />
             </div>
             <div>
-              <h3 className="font-medium text-white">OpenWebUI Setup</h3>
+              <h3 className="font-medium text-white">Open WebUI Setup</h3>
               <p className="text-xs text-surface-500">Configuration guide for Open WebUI</p>
             </div>
           </div>
 
           <div className="space-y-3">
+            {/* Important notice */}
+            <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/30">
+              <p className="text-xs text-amber-400 font-medium">
+                ⚠️ URL must end with <code className="bg-amber-500/20 px-1.5 py-0.5 rounded">/api</code>
+              </p>
+            </div>
+
             <div className="p-3 rounded-xl bg-surface-800/50">
-              <p className="text-xs font-medium text-surface-400 uppercase tracking-wider mb-2">Base URL</p>
+              <p className="text-xs font-medium text-surface-400 uppercase tracking-wider mb-2">1. Base URL</p>
               <code className="block text-sm text-brand-400 font-mono bg-surface-900/50 px-3 py-2 rounded-lg">
-                https://your_url/api
+                https://your-domain.com/api
               </code>
               <p className="text-xs text-surface-500 mt-2">
-                Replace <span className="text-brand-400 font-mono">your_url</span> with your OpenWebUI domain
+                Must end with <span className="text-brand-400 font-mono">/api</span> for Open WebUI to work
               </p>
             </div>
 
             <div className="p-3 rounded-xl bg-surface-800/50">
-              <p className="text-xs font-medium text-surface-400 uppercase tracking-wider mb-2">Provider</p>
+              <p className="text-xs font-medium text-surface-400 uppercase tracking-wider mb-2">2. Provider</p>
               <code className="block text-sm text-emerald-400 font-mono bg-surface-900/50 px-3 py-2 rounded-lg">
-                openai
+                Custom (Open WebUI, LM Studio, etc.)
               </code>
-              <p className="text-xs text-surface-500 mt-2">
-                OpenWebUI uses OpenAI-compatible API format
-              </p>
             </div>
 
             <div className="p-3 rounded-xl bg-surface-800/50">
-              <p className="text-xs font-medium text-surface-400 uppercase tracking-wider mb-2">API Key</p>
+              <p className="text-xs font-medium text-surface-400 uppercase tracking-wider mb-2">3. API Key</p>
               <code className="block text-sm text-amber-400 font-mono bg-surface-900/50 px-3 py-2 rounded-lg">
                 sk-xxxxxxxxxxxxxxxx
               </code>
               <p className="text-xs text-surface-500 mt-2">
-                Get your API key from OpenWebUI Settings → Account → API Keys
+                Get from Open WebUI → Settings → Account → API Keys
               </p>
             </div>
 
             <div className="p-3 rounded-xl bg-surface-800/50">
-              <p className="text-xs font-medium text-surface-400 uppercase tracking-wider mb-2">Model Examples</p>
-              <div className="space-y-1.5">
-                <code className="block text-sm text-violet-400 font-mono bg-surface-900/50 px-3 py-1.5 rounded-lg">
-                  llama3.1:70b
-                </code>
-                <code className="block text-sm text-violet-400 font-mono bg-surface-900/50 px-3 py-1.5 rounded-lg">
-                  qwen2.5:72b
-                </code>
-                <code className="block text-sm text-violet-400 font-mono bg-surface-900/50 px-3 py-1.5 rounded-lg">
-                  mistral-large
-                </code>
+              <p className="text-xs font-medium text-surface-400 uppercase tracking-wider mb-2">4. Select Model</p>
+              <div className="flex items-center gap-2 mb-2">
+                <span className="text-2xl">↻</span>
+                <p className="text-sm text-surface-300">
+                  Click the <span className="text-brand-400 font-medium">refresh button</span> next to Model
+                </p>
               </div>
-              <p className="text-xs text-surface-500 mt-2">
-                Use the model name as shown in your OpenWebUI models list
+              <p className="text-xs text-surface-500">
+                This queries your Open WebUI for all available models and shows them in a dropdown
               </p>
             </div>
 
@@ -246,11 +245,11 @@ export function Settings({ onBack }: SettingsProps) {
               onClick={() => chrome.runtime.openOptionsPage()}
               whileHover={{ scale: 1.02 }}
               whileTap={{ scale: 0.98 }}
-              className="btn-secondary w-full text-sm"
+              className="btn-primary w-full text-sm"
             >
               <span className="flex items-center justify-center gap-2">
                 <SettingsIcon className="w-4 h-4" />
-                Open Full Settings
+                Open Settings Page
               </span>
             </motion.button>
           </div>

@@ -48,6 +48,9 @@ export default function App() {
   const [saved, setSaved] = useState(false)
   const [testing, setTesting] = useState(false)
   const [testResult, setTestResult] = useState<{ success: boolean; message: string } | null>(null)
+  const [models, setModels] = useState<string[]>([])
+  const [fetchingModels, setFetchingModels] = useState(false)
+  const [modelsError, setModelsError] = useState<string | null>(null)
 
   useEffect(() => {
     chrome.storage.local.get(['llmConfig'], (result) => {
@@ -56,6 +59,34 @@ export default function App() {
       }
     })
   }, [])
+
+  const handleFetchModels = async () => {
+    setFetchingModels(true)
+    setModelsError(null)
+
+    try {
+      // Save config first so background script can use it
+      await chrome.storage.local.set({ llmConfig: config })
+
+      const response = await chrome.runtime.sendMessage({ type: 'GET_AVAILABLE_MODELS' })
+
+      if (response?.success && response.models?.length > 0) {
+        setModels(response.models)
+        // Auto-select first model if current model is not in list
+        if (!response.models.includes(config.model)) {
+          setConfig((prev) => ({ ...prev, model: response.models[0] }))
+        }
+      } else {
+        setModelsError(response?.error || 'No models found')
+        setModels([])
+      }
+    } catch (error) {
+      setModelsError(error instanceof Error ? error.message : 'Failed to fetch models')
+      setModels([])
+    }
+
+    setFetchingModels(false)
+  }
 
   const handleProviderChange = (provider: Provider) => {
     const defaults = PROVIDER_DEFAULTS[provider]
@@ -159,13 +190,40 @@ export default function App() {
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
               Model
             </label>
-            <input
-              type="text"
-              value={config.model}
-              onChange={(e) => setConfig((prev) => ({ ...prev, model: e.target.value }))}
-              placeholder="gpt-3.5-turbo, llama3.1, etc."
-              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-            />
+            <div className="flex gap-2">
+              {models.length > 0 ? (
+                <select
+                  value={config.model}
+                  onChange={(e) => setConfig((prev) => ({ ...prev, model: e.target.value }))}
+                  className="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                >
+                  {models.map((model) => (
+                    <option key={model} value={model}>
+                      {model}
+                    </option>
+                  ))}
+                </select>
+              ) : (
+                <input
+                  type="text"
+                  value={config.model}
+                  onChange={(e) => setConfig((prev) => ({ ...prev, model: e.target.value }))}
+                  placeholder="gpt-3.5-turbo, llama3.1, etc."
+                  className="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                />
+              )}
+              <button
+                onClick={handleFetchModels}
+                disabled={fetchingModels}
+                className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50 text-gray-700 dark:text-gray-300"
+                title="Refresh models list"
+              >
+                {fetchingModels ? '...' : '↻'}
+              </button>
+            </div>
+            {modelsError && (
+              <p className="mt-1 text-sm text-red-500">{modelsError}</p>
+            )}
           </div>
 
           <div className="grid grid-cols-2 gap-4">
@@ -230,9 +288,13 @@ export default function App() {
           <ul className="list-disc list-inside space-y-1 text-xs">
             <li><strong>Ollama:</strong> http://localhost:11434</li>
             <li><strong>LM Studio:</strong> http://localhost:1234/v1</li>
-            <li><strong>Open WebUI:</strong> http://localhost:3000/ollama</li>
+            <li><strong>Open WebUI:</strong> http://localhost:3000/api <span className="text-gray-400">(must end with /api)</span></li>
             <li><strong>OpenAI:</strong> https://api.openai.com/v1</li>
+            <li><strong>Anthropic:</strong> https://api.anthropic.com</li>
           </ul>
+          <p className="mt-2 text-xs text-gray-400">
+            Click the ↻ button next to Model to fetch available models from your API.
+          </p>
         </div>
       </div>
     </div>

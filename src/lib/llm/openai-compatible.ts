@@ -161,19 +161,29 @@ export class OpenAICompatibleProvider extends BaseLLMProvider {
 
       // Handle Ollama's response format (uses 'models' array with 'name' field)
       if (data.models && Array.isArray(data.models)) {
-        const models = data.models.map((m: { name: string }) => m.name)
-        logger.debug(`Found ${models.length} Ollama models`)
-        return models
+        const models = data.models.map((m: { name?: string; id?: string }) => m.name || m.id || 'unknown')
+        logger.debug(`Found ${models.length} Ollama/OpenWebUI models`)
+        return models.filter((m: string) => m !== 'unknown')
       }
 
       // Handle OpenAI-compatible format (uses 'data' array with 'id' field)
       if (data.data && Array.isArray(data.data)) {
-        const models = data.data.map((m: { id: string }) => m.id)
+        const models = data.data.map((m: { id: string; name?: string }) => m.id || m.name)
         logger.debug(`Found ${models.length} OpenAI-compatible models`)
-        return models
+        return models.filter(Boolean)
       }
 
-      logger.warn('Unknown models response format')
+      // Handle direct array response (some APIs return this)
+      if (Array.isArray(data)) {
+        const models = data.map((m: { id?: string; name?: string } | string) => {
+          if (typeof m === 'string') return m
+          return m.id || m.name || 'unknown'
+        })
+        logger.debug(`Found ${models.length} models (array format)`)
+        return models.filter((m: string) => m !== 'unknown')
+      }
+
+      logger.warn('Unknown models response format', JSON.stringify(data).slice(0, 200))
       return []
     } catch (error) {
       logger.error(`Failed to fetch models: ${error instanceof Error ? error.message : 'Unknown error'}`)
@@ -194,13 +204,17 @@ export class OpenAICompatibleProvider extends BaseLLMProvider {
       return `${base}/api/chat`
     }
 
-    // Handle different API endpoint patterns
-    if (base.endsWith('/v1')) {
-      return `${base}/chat/completions`
-    }
+    // Open WebUI uses /api/chat/completions when URL ends with /api
     if (base.endsWith('/api')) {
       return `${base}/chat/completions`
     }
+
+    // Standard OpenAI-compatible pattern
+    if (base.endsWith('/v1')) {
+      return `${base}/chat/completions`
+    }
+
+    // Default: append /v1/chat/completions
     return `${base}/v1/chat/completions`
   }
 
@@ -212,12 +226,17 @@ export class OpenAICompatibleProvider extends BaseLLMProvider {
       return `${base}/api/tags`
     }
 
-    if (base.endsWith('/v1')) {
-      return `${base}/models`
-    }
+    // Open WebUI uses /api/models when URL ends with /api
     if (base.endsWith('/api')) {
       return `${base}/models`
     }
+
+    // Standard OpenAI-compatible pattern
+    if (base.endsWith('/v1')) {
+      return `${base}/models`
+    }
+
+    // Default: append /v1/models
     return `${base}/v1/models`
   }
 
