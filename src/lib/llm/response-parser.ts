@@ -65,7 +65,8 @@ export function safeParseJSON<T>(text: string): T | null {
  * Parse category results from LLM response
  */
 export function parseCategoryResults(response: string): CategoryResult[] {
-  const parsed = safeParseJSON<Array<{ i: number; c: string }>>(response)
+  // Use any to be flexible with field names
+  const parsed = safeParseJSON<any[]>(response)
 
   if (!parsed || !Array.isArray(parsed)) {
     logger.warn('Invalid category response format', { response })
@@ -73,11 +74,21 @@ export function parseCategoryResults(response: string): CategoryResult[] {
   }
 
   return parsed
-    .filter((item) => typeof item.i === 'number' && typeof item.c === 'string')
-    .map((item) => ({
-      i: item.i,
-      c: normalizeCategory(item.c),
-    }))
+    .map((item, index) => {
+      // Allow lenient parsing of indices (string or number)
+      let i = parseInt(item.i ?? item.id ?? item.index)
+      if (isNaN(i)) {
+        i = index + 1 // Fallback to 1-based index if parsing fails
+      }
+
+      // Handle various category keys
+      const c = String(item.c ?? item.category ?? item.cat ?? 'Other')
+
+      return {
+        i,
+        c: normalizeCategory(c),
+      }
+    })
 }
 
 /**
@@ -183,7 +194,7 @@ export interface SmartGroupNameResult {
  * Parse smart categorization results (topic + subtopic)
  */
 export function parseSmartCategoryResults(response: string): SmartCategoryResult[] {
-  const parsed = safeParseJSON<Array<{ i: number; topic: string; subtopic: string }>>(response)
+  const parsed = safeParseJSON<any[]>(response)
 
   if (!parsed || !Array.isArray(parsed)) {
     logger.warn('Invalid smart category response format', { response })
@@ -191,12 +202,18 @@ export function parseSmartCategoryResults(response: string): SmartCategoryResult
   }
 
   return parsed
-    .filter(
-      (item) =>
-        typeof item.i === 'number' &&
-        typeof item.topic === 'string' &&
-        typeof item.subtopic === 'string'
-    )
+    .map((item, index) => {
+      // Lenient index parsing
+      let i = parseInt(item.i ?? item.id ?? item.index)
+      if (isNaN(i)) {
+        i = index + 1
+      }
+
+      const topic = String(item.topic ?? item.category ?? item.c ?? item.t ?? 'Uncategorized').trim()
+      const subtopic = String(item.subtopic ?? item.sub ?? item.s ?? 'General').trim()
+
+      return { i, topic, subtopic }
+    })
     .map((item) => ({
       i: item.i,
       topic: item.topic.slice(0, 50),
@@ -208,7 +225,7 @@ export function parseSmartCategoryResults(response: string): SmartCategoryResult
  * Parse smart folder assignment results
  */
 export function parseSmartAssignResults(response: string): SmartAssignResult[] {
-  const parsed = safeParseJSON<Array<{ i: number; folder: string }>>(response)
+  const parsed = safeParseJSON<any[]>(response)
 
   if (!parsed || !Array.isArray(parsed)) {
     logger.warn('Invalid smart assign response format', { response })
@@ -216,13 +233,21 @@ export function parseSmartAssignResults(response: string): SmartAssignResult[] {
   }
 
   return parsed
-    .filter(
-      (item) => typeof item.i === 'number' && typeof item.folder === 'string'
-    )
-    .map((item) => ({
-      i: item.i,
-      folder: item.folder.slice(0, 100),
-    }))
+    .map((item, index) => {
+      // Lenient index parsing
+      let i = parseInt(item.i ?? item.id ?? item.index)
+      if (isNaN(i)) {
+        i = index + 1
+      }
+
+      const folder = String(item.folder ?? item.f ?? item.target ?? '')
+
+      return {
+        i,
+        folder: folder.slice(0, 100),
+      }
+    })
+    .filter((item) => item.folder.length > 0)
 }
 
 /**
