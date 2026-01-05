@@ -42,6 +42,7 @@ export interface CategorizedTab {
 
 /**
  * Helper to strictly limit batch sizes to prevent LLM output truncation.
+ * Even with large input context, output tokens are often limited (e.g. 4096).
  */
 function enforceBatchLimit<T>(batches: T[][], limit: number): T[][] {
   return batches.flatMap(batch => {
@@ -64,13 +65,14 @@ export async function categorizeTabs(
   const { onProgress, concurrency = 2, delayBetweenBatches = 500 } = options
   const maxTokens = provider.config.maxContextTokens
 
+  // Prepare items with indices
   const items: TabItem[] = tabs.map((tab, index) => ({
     index: index + 1,
     title: tab.title,
     url: tab.url,
   }))
 
-  // Fix: Enforce output limit (~25 items) to prevent JSON truncation
+  // Split into batches and enforce strict output limit (~25 for simple categorization)
   let batches = splitIntoBatches(items, maxTokens)
   batches = enforceBatchLimit(batches, 25)
 
@@ -79,6 +81,7 @@ export async function categorizeTabs(
 
   logger.info(`Processing ${tabs.length} tabs in ${batches.length} batches`)
 
+  // Process batches with limited concurrency
   for (let i = 0; i < batches.length; i += concurrency) {
     const batchGroup = batches.slice(i, i + concurrency)
 
@@ -101,6 +104,7 @@ export async function categorizeTabs(
       })
     )
 
+    // Map results back to tabs
     for (let j = 0; j < batchGroup.length; j++) {
       const batch = batchGroup[j]
       const categoryResults = batchResults[j] ?? []
@@ -109,11 +113,11 @@ export async function categorizeTabs(
 
       for (let k = 0; k < batch.length; k++) {
         const item = batch[k]
-        if (!item) continue // Fix: TS build error
+        if (!item) continue
 
         const tab = tabs[item.index - 1]
         
-        // Fix: Robust matching logic
+        // Robust Matching: Try global index -> local index -> position
         let result = categoryResults.find((r) => r.i === item.index)
         if (!result) result = categoryResults.find((r) => r.i === (k + 1))
         if (!result && categoryResults[k]) result = categoryResults[k]
@@ -134,6 +138,7 @@ export async function categorizeTabs(
       status: `Processing batch ${processedBatches}/${batches.length}`,
     })
 
+    // Delay between batch groups
     if (i + concurrency < batches.length) {
       await sleep(delayBetweenBatches)
     }
@@ -142,6 +147,9 @@ export async function categorizeTabs(
   return results
 }
 
+/**
+ * Detect topic for a window's tabs
+ */
 export async function detectWindowTopic(
   provider: LLMProviderInterface,
   tabs: TabInfo[]
@@ -163,6 +171,9 @@ export async function detectWindowTopic(
   }
 }
 
+/**
+ * Suggest folder name based on contents
+ */
 export async function suggestFolderName(
   provider: LLMProviderInterface,
   currentName: string,
@@ -190,6 +201,9 @@ export async function suggestFolderName(
   }
 }
 
+/**
+ * Batch process folder name suggestions
+ */
 export async function suggestFolderNames(
   provider: LLMProviderInterface,
   folders: Array<{ folder: BookmarkNode; bookmarks: BookmarkNode[] }>,
@@ -227,6 +241,10 @@ export async function suggestFolderNames(
   return results
 }
 
+// ============================================
+// SMART AI CATEGORIZATION FUNCTIONS
+// ============================================
+
 export interface SmartCategorizedTab {
   tab: TabInfo
   topic: string
@@ -241,7 +259,8 @@ export interface SmartAssignedBookmark {
 }
 
 /**
- * Smart categorize tabs by topic and subtopic
+ * Smart categorize tabs by topic and subtopic (not just domain)
+ * Uses content analysis to group by meaning
  */
 export async function smartCategorizeTabs(
   provider: LLMProviderInterface,
@@ -252,15 +271,16 @@ export async function smartCategorizeTabs(
   const { onProgress, concurrency = 2, delayBetweenBatches = 500 } = options
   const maxTokens = provider.config.maxContextTokens
 
+  // Prepare items with indices
   const items: TabItem[] = tabs.map((tab, index) => ({
     index: index + 1,
     title: tab.title,
     url: tab.url,
   }))
 
-  // Fix: Enforce output limit (~15 items for smart categorization)
+  // Split into batches and enforce strict output limit (20 for verbose smart results)
   let batches = splitIntoBatches(items, Math.floor(maxTokens * 0.7))
-  batches = enforceBatchLimit(batches, 15)
+  batches = enforceBatchLimit(batches, 20)
 
   const results: SmartCategorizedTab[] = []
   let processedBatches = 0
@@ -275,11 +295,11 @@ export async function smartCategorizeTabs(
         return retry(
           async () => {
             const messages = buildSmartCategorizePrompt(batch, windowTopic)
-            const response = await provider.complete({ messages, maxTokens: 1500 })
+            const response = await provider.complete({ messages, maxTokens: 2048 }) // Increased limit
             return parseSmartCategoryResults(response.content)
           },
           {
-            maxRetries: 2,
+            maxRetries: 3,
             shouldRetry: shouldRetryLLMRequest,
             onRetry: (error, attempt) => {
               logger.warn(`Retry ${attempt} for smart categorize batch`, { error })
@@ -289,6 +309,7 @@ export async function smartCategorizeTabs(
       })
     )
 
+    // Map results back to tabs
     for (let j = 0; j < batchGroup.length; j++) {
       const batch = batchGroup[j]
       const categoryResults = batchResults[j] ?? []
@@ -297,11 +318,11 @@ export async function smartCategorizeTabs(
 
       for (let k = 0; k < batch.length; k++) {
         const item = batch[k]
-        if (!item) continue // Fix: TS build error
+        if (!item) continue
 
         const tab = tabs[item.index - 1]
-
-        // Fix: Robust matching logic
+        
+        // Robust Matching: Try global index -> local index -> position
         let result = categoryResults.find((r) => r.i === item.index)
         if (!result) result = categoryResults.find((r) => r.i === (k + 1))
         if (!result && categoryResults[k]) result = categoryResults[k]
@@ -332,7 +353,8 @@ export async function smartCategorizeTabs(
 }
 
 /**
- * Smart assign orphan bookmarks
+ * Smart assign orphan bookmarks to existing folders based on content/topic
+ * Returns folder assignments with flags for new folder suggestions
  */
 export async function smartAssignBookmarks(
   provider: LLMProviderInterface,
@@ -343,6 +365,7 @@ export async function smartAssignBookmarks(
   const { onProgress, concurrency = 2, delayBetweenBatches = 500 } = options
   const maxTokens = provider.config.maxContextTokens
 
+  // Prepare items with indices
   const items: BookmarkItem[] = bookmarks
     .filter((b) => b.url)
     .map((b, index) => ({
@@ -352,7 +375,7 @@ export async function smartAssignBookmarks(
       url: b.url!,
     }))
 
-  // Fix: Enforce output limit (~20 items)
+  // Split into batches and enforce strict output limit (~20 for bookmarks)
   let batches = splitIntoBatches(items, Math.floor(maxTokens * 0.6))
   batches = enforceBatchLimit(batches, 20)
 
@@ -369,7 +392,7 @@ export async function smartAssignBookmarks(
         return retry(
           async () => {
             const messages = buildSmartAssignPrompt(batch, existingFolders)
-            const response = await provider.complete({ messages, maxTokens: 1000 })
+            const response = await provider.complete({ messages, maxTokens: 2048 })
             return parseSmartAssignResults(response.content)
           },
           {
@@ -383,6 +406,7 @@ export async function smartAssignBookmarks(
       })
     )
 
+    // Map results back to bookmarks
     for (let j = 0; j < batchGroup.length; j++) {
       const batch = batchGroup[j]
       const assignResults = batchResults[j] ?? []
@@ -391,11 +415,11 @@ export async function smartAssignBookmarks(
 
       for (let k = 0; k < batch.length; k++) {
         const item = batch[k]
-        if (!item) continue // Fix: TS build error
+        if (!item) continue
 
         const bookmark = bookmarks.find((b) => b.id === item.id)
         
-        // Fix: Robust matching logic
+        // Robust Matching: Try global index -> local index -> position
         let result = assignResults.find((r) => r.i === item.index)
         if (!result) result = assignResults.find((r) => r.i === (k + 1))
         if (!result && assignResults[k]) result = assignResults[k]
@@ -429,6 +453,10 @@ export async function smartAssignBookmarks(
   return results
 }
 
+/**
+ * Analyze user's existing folder organization pattern
+ * Helps understand their naming conventions and categories
+ */
 export async function analyzeUserFolders(
   provider: LLMProviderInterface,
   folders: Array<{ name: string; itemCount: number; sampleTitles: string[] }>
@@ -449,6 +477,9 @@ export async function analyzeUserFolders(
   }
 }
 
+/**
+ * Suggest how to reorganize a messy folder
+ */
 export async function suggestFolderReorganization(
   provider: LLMProviderInterface,
   folderName: string,
@@ -477,6 +508,9 @@ export async function suggestFolderReorganization(
   }
 }
 
+/**
+ * Generate a smart, specific group name based on tab content
+ */
 export async function suggestSmartGroupName(
   provider: LLMProviderInterface,
   tabs: TabInfo[],
@@ -500,6 +534,9 @@ export async function suggestSmartGroupName(
   }
 }
 
+/**
+ * Group tabs by topic/subtopic and return organized structure
+ */
 export function groupTabsByTopic(
   categorizedTabs: SmartCategorizedTab[]
 ): Map<string, Map<string, SmartCategorizedTab[]>> {
@@ -521,6 +558,9 @@ export function groupTabsByTopic(
   return topicGroups
 }
 
+/**
+ * Group bookmark assignments by target folder
+ */
 export function groupBookmarksByFolder(
   assignments: SmartAssignedBookmark[]
 ): Map<string, { bookmarks: SmartAssignedBookmark[]; isNew: boolean }> {
