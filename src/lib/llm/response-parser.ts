@@ -75,10 +75,10 @@ export function parseCategoryResults(response: string): CategoryResult[] {
 
   return parsed
     .map((item, index) => {
-      // Allow lenient parsing of indices (string or number)
+      // Fix: Handle index as string or number, fallback to 1-based index
       let i = parseInt(item.i ?? item.id ?? item.index)
       if (isNaN(i)) {
-        i = index + 1 // Fallback to 1-based index if parsing fails
+        i = index + 1
       }
 
       // Handle various category keys
@@ -203,7 +203,7 @@ export function parseSmartCategoryResults(response: string): SmartCategoryResult
 
   return parsed
     .map((item, index) => {
-      // Lenient index parsing
+      // Fix: Lenient index parsing
       let i = parseInt(item.i ?? item.id ?? item.index)
       if (isNaN(i)) {
         i = index + 1
@@ -232,22 +232,25 @@ export function parseSmartAssignResults(response: string): SmartAssignResult[] {
     return []
   }
 
-  return parsed
-    .map((item, index) => {
-      // Lenient index parsing
-      let i = parseInt(item.i ?? item.id ?? item.index)
-      if (isNaN(i)) {
-        i = index + 1
-      }
+  // Optimization: Use flatMap to map and filter in one pass
+  return parsed.flatMap((item, index) => {
+    let i = parseInt(item.i ?? item.id ?? item.index)
+    if (isNaN(i)) {
+      i = index + 1
+    }
 
-      const folder = String(item.folder ?? item.f ?? item.target ?? '')
+    const folder = String(item.folder ?? item.f ?? item.target ?? '')
+    
+    // Filter out items with empty folder strings
+    if (folder.length === 0) {
+      return []
+    }
 
-      return {
-        i,
-        folder: folder.slice(0, 100),
-      }
-    })
-    .filter((item) => item.folder.length > 0)
+    return [{
+      i,
+      folder: folder.slice(0, 100),
+    }]
+  })
 }
 
 /**
@@ -282,9 +285,9 @@ export function parseFolderAnalysisResult(response: string): FolderAnalysisResul
  */
 export function parseReorganizeFolderResult(response: string): ReorganizeFolderResult | null {
   const parsed = safeParseJSON<{
-    moveToExisting: Array<{ item: number; targetFolder: string }>
-    newSubfolders: Array<{ name: string; items: number[] }>
-    keepInPlace: number[]
+    moveToExisting: any[]
+    newSubfolders: any[]
+    keepInPlace: any[]
   }>(response)
 
   if (!parsed) {
@@ -293,13 +296,24 @@ export function parseReorganizeFolderResult(response: string): ReorganizeFolderR
   }
 
   return {
-    moveToExisting: (parsed.moveToExisting || [])
-      .filter((m) => typeof m.item === 'number' && typeof m.targetFolder === 'string')
-      .map((m) => ({ item: m.item, targetFolder: m.targetFolder.slice(0, 100) })),
-    newSubfolders: (parsed.newSubfolders || [])
-      .filter((s) => typeof s.name === 'string' && Array.isArray(s.items))
-      .map((s) => ({ name: s.name.slice(0, 100), items: s.items.filter((i) => typeof i === 'number') })),
-    keepInPlace: (parsed.keepInPlace || []).filter((i) => typeof i === 'number'),
+    // Optimization: Use flatMap for cleaner filtering and mapping
+    moveToExisting: (parsed.moveToExisting || []).flatMap((m) => {
+      if (typeof m.item === 'number' && typeof m.targetFolder === 'string') {
+        return [{ item: m.item, targetFolder: m.targetFolder.slice(0, 100) }]
+      }
+      return []
+    }),
+    // Optimization: Use flatMap
+    newSubfolders: (parsed.newSubfolders || []).flatMap((s) => {
+      if (typeof s.name === 'string' && Array.isArray(s.items)) {
+        return [{ 
+          name: s.name.slice(0, 100), 
+          items: s.items.filter((i: any) => typeof i === 'number') 
+        }]
+      }
+      return []
+    }),
+    keepInPlace: (parsed.keepInPlace || []).filter((i: any) => typeof i === 'number'),
   }
 }
 
