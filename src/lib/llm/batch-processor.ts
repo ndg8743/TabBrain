@@ -41,6 +41,20 @@ export interface CategorizedTab {
 }
 
 /**
+ * Helper to strictly limit batch sizes to prevent LLM output truncation.
+ * Even with large input context, output tokens are often limited (e.g. 4096).
+ */
+function enforceBatchLimit<T>(batches: T[][], limit: number): T[][] {
+  return batches.flatMap(batch => {
+    const chunks: T[][] = []
+    for (let i = 0; i < batch.length; i += limit) {
+      chunks.push(batch.slice(i, i + limit))
+    }
+    return chunks
+  })
+}
+
+/**
  * Categorize tabs in batches
  */
 export async function categorizeTabs(
@@ -58,8 +72,10 @@ export async function categorizeTabs(
     url: tab.url,
   }))
 
-  // Split into batches
-  const batches = splitIntoBatches(items, maxTokens)
+  // Split into batches and enforce strict output limit (~25 for simple categorization)
+  let batches = splitIntoBatches(items, maxTokens)
+  batches = enforceBatchLimit(batches, 25)
+
   const results: CategorizedTab[] = []
   let processedBatches = 0
 
@@ -74,7 +90,7 @@ export async function categorizeTabs(
         return retry(
           async () => {
             const messages = buildCategorizePrompt(batch)
-            const response = await provider.complete({ messages, maxTokens: 500 })
+            const response = await provider.complete({ messages, maxTokens: 1000 })
             return parseCategoryResults(response.content)
           },
           {
@@ -93,9 +109,19 @@ export async function categorizeTabs(
       const batch = batchGroup[j]
       const categoryResults = batchResults[j] ?? []
 
-      for (const item of batch ?? []) {
+      if (!batch) continue
+
+      for (let k = 0; k < batch.length; k++) {
+        const item = batch[k]
+        if (!item) continue
+
         const tab = tabs[item.index - 1]
-        const result = categoryResults.find((r) => r.i === item.index)
+        
+        // Robust Matching: Try global index -> local index -> position
+        let result = categoryResults.find((r) => r.i === item.index)
+        if (!result) result = categoryResults.find((r) => r.i === (k + 1))
+        if (!result && categoryResults[k]) result = categoryResults[k]
+
         if (tab) {
           results.push({
             tab,
@@ -252,8 +278,10 @@ export async function smartCategorizeTabs(
     url: tab.url,
   }))
 
-  // Split into batches (smaller for smart categorization due to more complex output)
-  const batches = splitIntoBatches(items, Math.floor(maxTokens * 0.7))
+  // Split into batches and enforce strict output limit (20 for verbose smart results)
+  let batches = splitIntoBatches(items, Math.floor(maxTokens * 0.7))
+  batches = enforceBatchLimit(batches, 20)
+
   const results: SmartCategorizedTab[] = []
   let processedBatches = 0
 
@@ -267,11 +295,11 @@ export async function smartCategorizeTabs(
         return retry(
           async () => {
             const messages = buildSmartCategorizePrompt(batch, windowTopic)
-            const response = await provider.complete({ messages, maxTokens: 800 })
+            const response = await provider.complete({ messages, maxTokens: 2048 }) // Increased limit
             return parseSmartCategoryResults(response.content)
           },
           {
-            maxRetries: 2,
+            maxRetries: 3,
             shouldRetry: shouldRetryLLMRequest,
             onRetry: (error, attempt) => {
               logger.warn(`Retry ${attempt} for smart categorize batch`, { error })
@@ -286,9 +314,19 @@ export async function smartCategorizeTabs(
       const batch = batchGroup[j]
       const categoryResults = batchResults[j] ?? []
 
-      for (const item of batch ?? []) {
+      if (!batch) continue
+
+      for (let k = 0; k < batch.length; k++) {
+        const item = batch[k]
+        if (!item) continue
+
         const tab = tabs[item.index - 1]
-        const result = categoryResults.find((r) => r.i === item.index)
+        
+        // Robust Matching: Try global index -> local index -> position
+        let result = categoryResults.find((r) => r.i === item.index)
+        if (!result) result = categoryResults.find((r) => r.i === (k + 1))
+        if (!result && categoryResults[k]) result = categoryResults[k]
+
         if (tab) {
           results.push({
             tab,
@@ -337,8 +375,10 @@ export async function smartAssignBookmarks(
       url: b.url!,
     }))
 
-  // Split into batches
-  const batches = splitIntoBatches(items, Math.floor(maxTokens * 0.6))
+  // Split into batches and enforce strict output limit (~20 for bookmarks)
+  let batches = splitIntoBatches(items, Math.floor(maxTokens * 0.6))
+  batches = enforceBatchLimit(batches, 20)
+
   const results: SmartAssignedBookmark[] = []
   let processedBatches = 0
 
@@ -352,7 +392,7 @@ export async function smartAssignBookmarks(
         return retry(
           async () => {
             const messages = buildSmartAssignPrompt(batch, existingFolders)
-            const response = await provider.complete({ messages, maxTokens: 600 })
+            const response = await provider.complete({ messages, maxTokens: 2048 })
             return parseSmartAssignResults(response.content)
           },
           {
@@ -371,9 +411,18 @@ export async function smartAssignBookmarks(
       const batch = batchGroup[j]
       const assignResults = batchResults[j] ?? []
 
-      for (const item of batch ?? []) {
+      if (!batch) continue
+
+      for (let k = 0; k < batch.length; k++) {
+        const item = batch[k]
+        if (!item) continue
+
         const bookmark = bookmarks.find((b) => b.id === item.id)
-        const result = assignResults.find((r) => r.i === item.index)
+        
+        // Robust Matching: Try global index -> local index -> position
+        let result = assignResults.find((r) => r.i === item.index)
+        if (!result) result = assignResults.find((r) => r.i === (k + 1))
+        if (!result && assignResults[k]) result = assignResults[k]
 
         if (bookmark) {
           const folderValue = result?.folder ?? 'Uncategorized'
