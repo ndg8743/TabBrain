@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'motion/react'
-import { ErrorBoundary, ToastProvider } from './components'
-import { PerformanceProvider, ViewModeProvider } from './context'
+import { ErrorBoundary, ToastProvider, ProcessingQueue } from './components'
+import { PerformanceProvider, ViewModeProvider, QueueProvider } from './context'
 import {
   Dashboard,
   DuplicateFinder,
@@ -9,6 +9,8 @@ import {
   WindowMerge,
   BookmarkCleaner,
   Settings,
+  TabChat,
+  TabMindmap,
   type View,
 } from './pages'
 
@@ -52,9 +54,10 @@ export default function App() {
   return (
     <PerformanceProvider>
       <ViewModeProvider>
-        <ToastProvider>
-          <ErrorBoundary>
-            <div className="flex flex-col h-screen overflow-hidden">
+        <QueueProvider>
+          <ToastProvider>
+            <ErrorBoundary>
+              <div className="flex flex-col h-screen overflow-hidden">
           {/* Header */}
           <motion.header
             initial={{ y: -20, opacity: 0 }}
@@ -109,9 +112,13 @@ export default function App() {
               </AnimatePresence>
             </ErrorBoundary>
           </main>
-          </div>
-        </ErrorBoundary>
-      </ToastProvider>
+
+              {/* Processing Queue - fixed at bottom */}
+              <ProcessingQueue />
+            </div>
+          </ErrorBoundary>
+        </ToastProvider>
+      </QueueProvider>
     </ViewModeProvider>
   </PerformanceProvider>
   )
@@ -144,6 +151,10 @@ function ViewRenderer({
         return <BookmarkCleaner onBack={() => onNavigate('dashboard')} />
       case 'settings':
         return <Settings onBack={() => onNavigate('dashboard')} />
+      case 'chat':
+        return <TabChat onBack={() => onNavigate('dashboard')} />
+      case 'mindmap':
+        return <TabMindmap onBack={() => onNavigate('dashboard')} />
       default:
         return <Dashboard onNavigate={onNavigate} />
     }

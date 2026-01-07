@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react'
 import { motion } from 'motion/react'
 import { useTabs, useDuplicateTabs, useLLMConfig, useWindows } from '../hooks'
+import { CopyTabsButton } from '../components'
 
-export type View = 'dashboard' | 'duplicates' | 'windows' | 'merge' | 'bookmarks' | 'settings'
+export type View = 'dashboard' | 'duplicates' | 'windows' | 'merge' | 'bookmarks' | 'settings' | 'chat' | 'mindmap'
 
 interface DashboardProps {
   onNavigate: (view: View) => void
@@ -28,6 +29,17 @@ export function Dashboard({ onNavigate }: DashboardProps) {
   )
 
   const actions = [
+    {
+      id: 'chat',
+      title: 'Chat with Tabs',
+      description: 'Ask questions about your tabs',
+      icon: <ChatIcon />,
+      view: 'chat' as View,
+      disabled: !isConfigured,
+      gradient: 'from-brand-500 to-cyan-500',
+      shadowColor: 'shadow-brand-500/20',
+      aiPowered: true,
+    },
     {
       id: 'duplicates',
       title: 'Find Duplicates',
@@ -68,6 +80,15 @@ export function Dashboard({ onNavigate }: DashboardProps) {
       gradient: 'from-emerald-500 to-teal-600',
       shadowColor: 'shadow-emerald-500/20',
     },
+    {
+      id: 'mindmap',
+      title: 'Tab Mindmap',
+      description: 'Visualize all tabs & windows',
+      icon: <MindmapIcon />,
+      view: 'mindmap' as View,
+      gradient: 'from-indigo-500 to-violet-600',
+      shadowColor: 'shadow-indigo-500/20',
+    },
   ]
 
   return (
@@ -97,19 +118,31 @@ export function Dashboard({ onNavigate }: DashboardProps) {
             </div>
           </div>
 
-          {duplicateCount > 0 && (
-            <motion.div
-              initial={{ opacity: 0, scale: 0.9 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={{ delay: 0.2 }}
-              className="mt-4 flex items-center gap-2 text-sm"
-            >
-              <span className="badge-warning">
-                <WarningIcon className="w-3.5 h-3.5" />
-                {duplicateCount} duplicates found
-              </span>
-            </motion.div>
-          )}
+          {/* Duplicates warning and copy button */}
+          <div className="mt-4 flex items-center justify-between">
+            {duplicateCount > 0 ? (
+              <motion.div
+                initial={{ opacity: 0, scale: 0.9 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ delay: 0.2 }}
+                className="flex items-center gap-2 text-sm"
+              >
+                <span className="badge-warning">
+                  <WarningIcon className="w-3.5 h-3.5" />
+                  {duplicateCount} duplicates found
+                </span>
+              </motion.div>
+            ) : (
+              <div />
+            )}
+            <CopyTabsButton
+              tabs={tabs}
+              label="Copy All Tabs"
+              variant="ghost"
+              size="sm"
+              showCount={false}
+            />
+          </div>
         </div>
       </motion.div>
 
@@ -236,6 +269,14 @@ export function Dashboard({ onNavigate }: DashboardProps) {
 }
 
 // Icons
+function ChatIcon() {
+  return (
+    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+    </svg>
+  )
+}
+
 function CopyIcon() {
   return (
     <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -288,6 +329,19 @@ function SparklesIcon({ className }: { className?: string }) {
   return (
     <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" />
+    </svg>
+  )
+}
+
+function MindmapIcon() {
+  return (
+    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <circle cx="12" cy="12" r="3" strokeWidth={2} />
+      <circle cx="5" cy="6" r="2" strokeWidth={2} />
+      <circle cx="19" cy="6" r="2" strokeWidth={2} />
+      <circle cx="5" cy="18" r="2" strokeWidth={2} />
+      <circle cx="19" cy="18" r="2" strokeWidth={2} />
+      <path strokeLinecap="round" strokeWidth={2} d="M9.5 10L6.5 7.5M14.5 10l3-2.5M9.5 14l-3 2.5M14.5 14l3 2.5" />
     </svg>
   )
 }

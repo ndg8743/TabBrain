@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'motion/react'
 import type { WindowInfo, TabGroupOptions, TabInfo } from '@/types/domain'
 import { DEFAULT_TAB_GROUP_OPTIONS } from '@/types/domain'
 import { useWindows, useWindowTopic, useCategorizeTabs, useSmartCategorizeTabs, useTabGroups, useLLMConfig } from '../hooks'
-import { TabList, ProgressOverlay, SortOptionsPanel, ViewModeToggle, ProcessingLog, type LogEntry } from '../components'
+import { TabList, ProgressOverlay, SortOptionsPanel, ViewModeToggle, ProcessingLog, type LogEntry, CopyTabsButton } from '../components'
 import { useViewMode } from '../context'
 
 interface WindowOrganizerProps {
@@ -630,7 +630,15 @@ function WindowDetail({ window, onBack }: WindowDetailProps) {
             </span>
             <ChevronDownIcon className={`w-4 h-4 text-surface-500 transition-transform ${showTabList ? 'rotate-180' : ''}`} />
           </button>
-          <ViewModeToggle />
+          <div className="flex items-center gap-2">
+            <CopyTabsButton
+              tabs={window.tabs}
+              label="Copy"
+              variant="ghost"
+              size="sm"
+            />
+            <ViewModeToggle />
+          </div>
         </div>
 
         <AnimatePresence>

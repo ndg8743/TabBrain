@@ -51,6 +51,8 @@ export type MessageType =
   | 'ANALYZE_USER_FOLDERS'
   | 'SUGGEST_FOLDER_REORGANIZATION'
   | 'SUGGEST_SMART_GROUP_NAME'
+  // Chat
+  | 'CHAT_WITH_TABS'
 
 export interface Message<T extends MessageType = MessageType> {
   type: T
@@ -524,6 +526,57 @@ const handlers: Partial<Record<MessageType, MessageHandler>> = {
       const message = error instanceof Error ? error.message : 'Failed to fetch models'
       logger.error('Failed to fetch models', { error: message })
       return { success: false, models: [], error: message }
+    }
+  },
+
+  /**
+   * Chat with tabs - ask questions about open tabs
+   */
+  CHAT_WITH_TABS: async (payload: {
+    message: string
+    tabs: Array<{ id: number; title: string; url: string }>
+    conversationHistory?: Array<{ role: 'user' | 'assistant'; content: string }>
+  }) => {
+    const config = await getLLMConfig()
+    if (!config) {
+      throw new Error('LLM not configured')
+    }
+
+    const provider = new OpenAICompatibleProvider(config)
+
+    // Build context from tabs
+    const tabContext = payload.tabs
+      .map((t, i) => `${i + 1}. "${t.title}" - ${t.url}`)
+      .join('\n')
+
+    const systemPrompt = `You are a helpful assistant that answers questions about the user's browser tabs.
+You have access to information about their open tabs.
+
+The user has the following ${payload.tabs.length} tabs open:
+${tabContext}
+
+Based on this context, answer the user's questions about their tabs. Be concise and helpful.
+If asked to find something, refer to tabs by their title or content.
+If asked about duplicates, look for tabs with similar URLs or titles.
+If asked for a summary, provide a brief overview of what the user seems to be working on.`
+
+    // Build messages array
+    const messages = [
+      { role: 'system' as const, content: systemPrompt },
+      ...(payload.conversationHistory || []).map(m => ({
+        role: m.role as 'user' | 'assistant',
+        content: m.content,
+      })),
+      { role: 'user' as const, content: payload.message },
+    ]
+
+    try {
+      const response = await provider.complete({ messages })
+      return { content: response.content }
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Chat failed'
+      logger.error('Chat with tabs failed', { error: message })
+      throw new Error(message)
     }
   },
 }
