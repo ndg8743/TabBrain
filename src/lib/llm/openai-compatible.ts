@@ -48,6 +48,15 @@ export class OpenAICompatibleProvider extends BaseLLMProvider {
   async complete(options: LLMRequestOptions): Promise<LLMResponse> {
     const url = this.getCompletionUrl()
 
+    // Debug logging
+    console.log('[TabBrain] complete config:', {
+      baseUrl: this.config.baseUrl,
+      model: this.config.model,
+      hasApiKey: Boolean(this.config.apiKey),
+      apiKeyLength: this.config.apiKey?.length ?? 0,
+    })
+    console.log('[TabBrain] complete URL:', url)
+
     const body: OpenAIRequest = {
       model: this.config.model,
       messages: options.messages.map(this.mapMessage),
@@ -144,6 +153,18 @@ export class OpenAICompatibleProvider extends BaseLLMProvider {
   async listModels(): Promise<string[]> {
     const url = this.getModelsUrl()
     const headers = this.getHeaders()
+
+    // Debug logging - show in console
+    console.log('[TabBrain] listModels config:', {
+      baseUrl: this.config.baseUrl,
+      model: this.config.model,
+      hasApiKey: Boolean(this.config.apiKey),
+      apiKeyLength: this.config.apiKey?.length ?? 0,
+      apiKeyPrefix: this.config.apiKey?.slice(0, 5) ?? 'none',
+    })
+    console.log('[TabBrain] listModels URL:', url)
+    console.log('[TabBrain] listModels headers:', Object.keys(headers))
+
     logger.debug(`Fetching models from: ${url}`)
     logger.debug(`API key present: ${Boolean(this.config.apiKey)}, key length: ${this.config.apiKey?.length ?? 0}`)
     logger.debug(`Headers: ${JSON.stringify(Object.keys(headers))}`)

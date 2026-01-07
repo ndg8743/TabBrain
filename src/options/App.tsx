@@ -70,14 +70,16 @@ export default function App() {
 
       const response = await chrome.runtime.sendMessage({ type: 'GET_AVAILABLE_MODELS' })
 
-      if (response?.success && response.models?.length > 0) {
-        setModels(response.models)
+      // Response is wrapped: { success: true, data: { success: boolean, models: string[], error?: string } }
+      const result = response?.data ?? response
+      if (result?.success && result.models?.length > 0) {
+        setModels(result.models)
         // Auto-select first model if current model is not in list
-        if (!response.models.includes(config.model)) {
-          setConfig((prev) => ({ ...prev, model: response.models[0] }))
+        if (!result.models.includes(config.model)) {
+          setConfig((prev) => ({ ...prev, model: result.models[0] }))
         }
       } else {
-        setModelsError(response?.error || 'No models found')
+        setModelsError(result?.error || response?.error || 'No models found')
         setModels([])
       }
     } catch (error) {
@@ -116,12 +118,14 @@ export default function App() {
       // Route through background script to avoid CORS issues
       const response = await chrome.runtime.sendMessage({ type: 'TEST_LLM_CONNECTION' })
 
-      if (response?.success) {
+      // Response is wrapped: { success: true, data: { success: boolean, error?: string } }
+      const result = response?.data ?? response
+      if (result?.success) {
         setTestResult({ success: true, message: 'Connection successful!' })
       } else {
         setTestResult({
           success: false,
-          message: response?.error || 'Connection failed',
+          message: result?.error || response?.error || 'Connection failed',
         })
       }
     } catch (error) {
