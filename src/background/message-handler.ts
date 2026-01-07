@@ -110,11 +110,23 @@ const handlers: Partial<Record<MessageType, MessageHandler>> = {
     const useSubtopics = options?.useAISubtopics ?? false
     const collapseGroups = options?.collapseGroupsOnCreate ?? false
 
+    // Categories to skip - don't create groups for these (leave tabs ungrouped)
+    const skipCategories = new Set([
+      'Uncategorized',
+      'uncategorized',
+      'Other',
+      'General',
+      'Unknown',
+    ])
+
     // Group tabs by category (or subtopic if enabled)
     const byCategory = new Map<string, { tabs: TabInfo[]; displayName: string }>()
     for (const { tab, category, subtopic } of categorizedTabs) {
       if (tab.windowId !== windowId) continue
       if (tab.pinned) continue
+
+      // Skip uncategorized/other tabs - don't group them
+      if (skipCategories.has(category)) continue
 
       const key = category
       const displayName = useSubtopics && subtopic ? subtopic : category

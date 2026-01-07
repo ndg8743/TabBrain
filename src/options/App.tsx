@@ -226,32 +226,59 @@ export default function App() {
             )}
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                Max Context Tokens
-              </label>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+              Max Context Tokens
+            </label>
+            <div className="flex gap-2 mb-2">
               <input
                 type="number"
                 value={config.maxContextTokens}
                 onChange={(e) => setConfig((prev) => ({ ...prev, maxContextTokens: parseInt(e.target.value) || 8000 }))}
-                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                className="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
               />
             </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                Temperature
-              </label>
-              <input
-                type="number"
-                step="0.1"
-                min="0"
-                max="2"
-                value={config.temperature}
-                onChange={(e) => setConfig((prev) => ({ ...prev, temperature: parseFloat(e.target.value) || 0.3 }))}
-                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-              />
+            <div className="flex flex-wrap gap-1">
+              {[
+                { label: '4K', value: 4000, desc: 'Small models' },
+                { label: '8K', value: 8000, desc: 'Llama 3.1 8B' },
+                { label: '32K', value: 32000, desc: 'Llama 3.1 70B' },
+                { label: '128K', value: 128000, desc: 'GPT-4o' },
+              ].map(({ label, value }) => (
+                <button
+                  key={value}
+                  onClick={() => setConfig((prev) => ({ ...prev, maxContextTokens: value }))}
+                  className={`px-2 py-1 text-xs rounded border ${
+                    config.maxContextTokens === value
+                      ? 'bg-primary-600 text-white border-primary-600'
+                      : 'border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300'
+                  }`}
+                >
+                  {label}
+                </button>
+              ))}
             </div>
+            <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+              Controls batch size. Lower = more batches but safer. Higher = fewer API calls.
+            </p>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+              Temperature
+            </label>
+            <input
+              type="number"
+              step="0.1"
+              min="0"
+              max="2"
+              value={config.temperature}
+              onChange={(e) => setConfig((prev) => ({ ...prev, temperature: parseFloat(e.target.value) || 0.3 }))}
+              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+            />
+            <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+              0.0-0.3 recommended for consistent categorization.
+            </p>
           </div>
 
           {testResult && (

@@ -4,10 +4,19 @@ import { logger } from '@/lib/utils/logger'
 
 /**
  * Extract JSON from a response that may contain extra text
+ * Handles thinking models (DeepSeek R1, etc.) that output <think>...</think> tags
  */
 export function extractJSON(text: string): string {
+  // Remove thinking model tags (DeepSeek R1, QwQ, etc.)
+  // These models wrap their reasoning in <think>...</think> or similar tags
+  let cleaned = text
+    .replace(/<think>[\s\S]*?<\/think>/gi, '')
+    .replace(/<thinking>[\s\S]*?<\/thinking>/gi, '')
+    .replace(/<reasoning>[\s\S]*?<\/reasoning>/gi, '')
+    .replace(/<reflection>[\s\S]*?<\/reflection>/gi, '')
+
   // Remove markdown code blocks
-  let cleaned = text.replace(/```json\s*/gi, '').replace(/```\s*/g, '')
+  cleaned = cleaned.replace(/```json\s*/gi, '').replace(/```\s*/g, '')
 
   // Find JSON array or object
   const arrayMatch = cleaned.match(/\[[\s\S]*\]/)
@@ -55,7 +64,7 @@ export function safeParseJSON<T>(text: string): T | null {
       const fixed = fixJSON(extracted)
       return JSON.parse(fixed) as T
     } catch (error) {
-      logger.warn('Failed to parse JSON', { text, error })
+      logger.warn('Failed to parse JSON', { text: text.slice(0, 300), error })
       return null
     }
   }
@@ -63,32 +72,39 @@ export function safeParseJSON<T>(text: string): T | null {
 
 /**
  * Parse category results from LLM response
+ * Uses lenient parsing to handle various field names from different models
  */
 export function parseCategoryResults(response: string): CategoryResult[] {
   // Use any to be flexible with field names
   const parsed = safeParseJSON<any[]>(response)
 
   if (!parsed || !Array.isArray(parsed)) {
-    logger.warn('Invalid category response format', { response })
+    logger.warn('Invalid category response format', {
+      response: response.slice(0, 500),
+      responseLength: response.length,
+      hint: 'LLM may have returned thinking tags or malformed JSON'
+    })
     return []
   }
 
-  return parsed
-    .map((item, index) => {
-      // Fix: Handle index as string or number, fallback to 1-based index
-      let i = parseInt(item.i ?? item.id ?? item.index)
-      if (isNaN(i)) {
-        i = index + 1
-      }
+  const results = parsed.map((item, index) => {
+    // Fix: Handle index as string or number, fallback to 1-based index
+    let i = parseInt(item.i ?? item.id ?? item.index)
+    if (isNaN(i)) {
+      i = index + 1
+    }
 
-      // Handle various category keys
-      const c = String(item.c ?? item.category ?? item.cat ?? 'Other')
+    // Handle various category keys
+    const c = String(item.c ?? item.category ?? item.cat ?? 'Other')
 
-      return {
-        i,
-        c: normalizeCategory(c),
-      }
-    })
+    return {
+      i,
+      c: normalizeCategory(c),
+    }
+  })
+
+  logger.debug(`Parsed ${results.length} category results from ${parsed.length} items`)
+  return results
 }
 
 /**
@@ -107,7 +123,7 @@ export function parseTopicResult(response: string): TopicResult | null {
       }
     }
 
-    logger.warn('Invalid topic response format', { response })
+    logger.warn('Invalid topic response format', { response: response.slice(0, 300) })
     return null
   }
 
@@ -130,7 +146,7 @@ export function parseFolderNameResult(response: string): FolderNameResult | null
       return { name: nameMatch[1] }
     }
 
-    logger.warn('Invalid folder name response format', { response })
+    logger.warn('Invalid folder name response format', { response: response.slice(0, 300) })
     return null
   }
 
@@ -192,16 +208,21 @@ export interface SmartGroupNameResult {
 
 /**
  * Parse smart categorization results (topic + subtopic)
+ * Uses lenient parsing to handle various field names from different models
  */
 export function parseSmartCategoryResults(response: string): SmartCategoryResult[] {
   const parsed = safeParseJSON<any[]>(response)
 
   if (!parsed || !Array.isArray(parsed)) {
-    logger.warn('Invalid smart category response format', { response })
+    logger.warn('Invalid smart category response format', {
+      response: response.slice(0, 500),
+      responseLength: response.length,
+      hint: 'LLM may have returned thinking tags or malformed JSON'
+    })
     return []
   }
 
-  return parsed
+  const results = parsed
     .map((item, index) => {
       // Fix: Lenient index parsing
       let i = parseInt(item.i ?? item.id ?? item.index)
@@ -219,6 +240,9 @@ export function parseSmartCategoryResults(response: string): SmartCategoryResult
       topic: item.topic.slice(0, 50),
       subtopic: item.subtopic.slice(0, 50),
     }))
+
+  logger.debug(`Parsed ${results.length} smart category results from ${parsed.length} items`)
+  return results
 }
 
 /**
@@ -228,7 +252,7 @@ export function parseSmartAssignResults(response: string): SmartAssignResult[] {
   const parsed = safeParseJSON<any[]>(response)
 
   if (!parsed || !Array.isArray(parsed)) {
-    logger.warn('Invalid smart assign response format', { response })
+    logger.warn('Invalid smart assign response format', { response: response.slice(0, 300) })
     return []
   }
 
@@ -240,7 +264,7 @@ export function parseSmartAssignResults(response: string): SmartAssignResult[] {
     }
 
     const folder = String(item.folder ?? item.f ?? item.target ?? '')
-    
+
     // Filter out items with empty folder strings
     if (folder.length === 0) {
       return []
@@ -264,7 +288,7 @@ export function parseFolderAnalysisResult(response: string): FolderAnalysisResul
   }>(response)
 
   if (!parsed || !Array.isArray(parsed.categories)) {
-    logger.warn('Invalid folder analysis response format', { response })
+    logger.warn('Invalid folder analysis response format', { response: response.slice(0, 300) })
     return null
   }
 
@@ -291,7 +315,7 @@ export function parseReorganizeFolderResult(response: string): ReorganizeFolderR
   }>(response)
 
   if (!parsed) {
-    logger.warn('Invalid reorganize folder response format', { response })
+    logger.warn('Invalid reorganize folder response format', { response: response.slice(0, 300) })
     return null
   }
 
@@ -306,9 +330,9 @@ export function parseReorganizeFolderResult(response: string): ReorganizeFolderR
     // Optimization: Use flatMap
     newSubfolders: (parsed.newSubfolders || []).flatMap((s) => {
       if (typeof s.name === 'string' && Array.isArray(s.items)) {
-        return [{ 
-          name: s.name.slice(0, 100), 
-          items: s.items.filter((i: any) => typeof i === 'number') 
+        return [{
+          name: s.name.slice(0, 100),
+          items: s.items.filter((i: any) => typeof i === 'number')
         }]
       }
       return []
@@ -329,7 +353,7 @@ export function parseSmartGroupNameResult(response: string): SmartGroupNameResul
     if (nameMatch?.[1]) {
       return { name: nameMatch[1].slice(0, 50) }
     }
-    logger.warn('Invalid smart group name response format', { response })
+    logger.warn('Invalid smart group name response format', { response: response.slice(0, 300) })
     return null
   }
 

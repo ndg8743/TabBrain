@@ -90,7 +90,9 @@ export async function categorizeTabs(
         return retry(
           async () => {
             const messages = buildCategorizePrompt(batch)
-            const response = await provider.complete({ messages, maxTokens: 1000 })
+            // Scale response tokens based on batch size (~10 tokens per item + buffer)
+            const responseTokens = Math.min(1500, Math.max(300, batch.length * 15 + 100))
+            const response = await provider.complete({ messages, maxTokens: responseTokens })
             return parseCategoryResults(response.content)
           },
           {
@@ -116,7 +118,7 @@ export async function categorizeTabs(
         if (!item) continue
 
         const tab = tabs[item.index - 1]
-        
+
         // Robust Matching: Try global index -> local index -> position
         let result = categoryResults.find((r) => r.i === item.index)
         if (!result) result = categoryResults.find((r) => r.i === (k + 1))
@@ -295,7 +297,9 @@ export async function smartCategorizeTabs(
         return retry(
           async () => {
             const messages = buildSmartCategorizePrompt(batch, windowTopic)
-            const response = await provider.complete({ messages, maxTokens: 2048 }) // Increased limit
+            // Scale response tokens based on batch size (~30 tokens per item for topic+subtopic + buffer)
+            const responseTokens = Math.min(2500, Math.max(400, batch.length * 35 + 150))
+            const response = await provider.complete({ messages, maxTokens: responseTokens })
             return parseSmartCategoryResults(response.content)
           },
           {
@@ -321,7 +325,7 @@ export async function smartCategorizeTabs(
         if (!item) continue
 
         const tab = tabs[item.index - 1]
-        
+
         // Robust Matching: Try global index -> local index -> position
         let result = categoryResults.find((r) => r.i === item.index)
         if (!result) result = categoryResults.find((r) => r.i === (k + 1))
@@ -392,7 +396,9 @@ export async function smartAssignBookmarks(
         return retry(
           async () => {
             const messages = buildSmartAssignPrompt(batch, existingFolders)
-            const response = await provider.complete({ messages, maxTokens: 2048 })
+            // Scale response tokens based on batch size (~25 tokens per item + buffer)
+            const responseTokens = Math.min(2000, Math.max(400, batch.length * 30 + 150))
+            const response = await provider.complete({ messages, maxTokens: responseTokens })
             return parseSmartAssignResults(response.content)
           },
           {
@@ -418,7 +424,7 @@ export async function smartAssignBookmarks(
         if (!item) continue
 
         const bookmark = bookmarks.find((b) => b.id === item.id)
-        
+
         // Robust Matching: Try global index -> local index -> position
         let result = assignResults.find((r) => r.i === item.index)
         if (!result) result = assignResults.find((r) => r.i === (k + 1))
