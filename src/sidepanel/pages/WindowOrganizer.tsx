@@ -3,7 +3,8 @@ import { motion, AnimatePresence } from 'motion/react'
 import type { WindowInfo, TabGroupOptions, TabInfo } from '@/types/domain'
 import { DEFAULT_TAB_GROUP_OPTIONS } from '@/types/domain'
 import { useWindows, useWindowTopic, useCategorizeTabs, useSmartCategorizeTabs, useTabGroups, useLLMConfig } from '../hooks'
-import { TabList, ProgressOverlay, SortOptionsPanel } from '../components'
+import { TabList, ProgressOverlay, SortOptionsPanel, ViewModeToggle, ProcessingLog, type LogEntry } from '../components'
+import { useViewMode } from '../context'
 
 interface WindowOrganizerProps {
   onBack: () => void
@@ -236,10 +237,12 @@ function WindowDetail({ window, onBack }: WindowDetailProps) {
   const { categorize, loading: categorizingBasic, results: basicResults } = useCategorizeTabs()
   const { categorize: smartCategorize, loading: categorizingSmart, results: smartResults } = useSmartCategorizeTabs()
   const { createGroups, loading: grouping } = useTabGroups()
+  const { compactMode } = useViewMode()
   const [topic, setTopic] = useState(window.topic ?? '')
   const [editingTopic, setEditingTopic] = useState(false)
   const [useSmartMode, setUseSmartMode] = useState(true)
   const [showTabList, setShowTabList] = useState(true)
+  const [processingLogs, setProcessingLogs] = useState<LogEntry[]>([])
 
   // Determine which results to use - normalize to common format
   const categorizing = useSmartMode ? categorizingSmart : categorizingBasic
@@ -277,18 +280,36 @@ function WindowDetail({ window, onBack }: WindowDetailProps) {
     chrome.storage.local.set({ tabGroupPreferences: newOptions })
   }
 
+  const addLog = (type: LogEntry['type'], message: string, details?: string) => {
+    setProcessingLogs(prev => [...prev, {
+      id: Date.now().toString(),
+      timestamp: new Date(),
+      type,
+      message,
+      details,
+    }])
+  }
+
   const handleDetectTopic = async () => {
+    addLog('info', 'Detecting window topic...')
     const result = await detectTopic(window.id)
     if (result) {
       setTopic(result.topic)
+      addLog('success', `Topic detected: "${result.topic}"`, `Confidence: ${(result.confidence * 100).toFixed(0)}%`)
+    } else {
+      addLog('error', 'Failed to detect topic')
     }
   }
 
   const handleCategorize = async () => {
+    addLog('info', `Starting ${useSmartMode ? 'smart' : 'basic'} categorization for ${window.tabs.length} tabs...`)
     if (useSmartMode) {
       await smartCategorize(window.id, topic || undefined)
+      addLog('success', `Categorized ${smartResults.length || window.tabs.length} tabs`,
+        `Categories: ${Object.keys(categoryGroups).join(', ')}`)
     } else {
       await categorize(window.id)
+      addLog('success', `Categorized ${basicResults.length || window.tabs.length} tabs`)
     }
   }
 
@@ -583,21 +604,34 @@ function WindowDetail({ window, onBack }: WindowDetailProps) {
         )}
       </AnimatePresence>
 
+      {/* Processing Log */}
+      {processingLogs.length > 0 && (
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+        >
+          <ProcessingLog logs={processingLogs} title="Processing Details" maxHeight="150px" />
+        </motion.div>
+      )}
+
       {/* Tab List */}
       <motion.div
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.2 }}
       >
-        <button
-          onClick={() => setShowTabList(!showTabList)}
-          className="w-full flex items-center justify-between p-3 glass-card mb-2"
-        >
-          <span className="text-sm font-medium text-surface-300">
-            Tab List ({window.tabs.length})
-          </span>
-          <ChevronDownIcon className={`w-4 h-4 text-surface-500 transition-transform ${showTabList ? 'rotate-180' : ''}`} />
-        </button>
+        <div className="flex items-center justify-between p-3 glass-card mb-2">
+          <button
+            onClick={() => setShowTabList(!showTabList)}
+            className="flex items-center gap-2"
+          >
+            <span className="text-sm font-medium text-surface-300">
+              Tab List ({window.tabs.length})
+            </span>
+            <ChevronDownIcon className={`w-4 h-4 text-surface-500 transition-transform ${showTabList ? 'rotate-180' : ''}`} />
+          </button>
+          <ViewModeToggle />
+        </div>
 
         <AnimatePresence>
           {showTabList && (
@@ -611,6 +645,7 @@ function WindowDetail({ window, onBack }: WindowDetailProps) {
                 showCategory={results.length > 0}
                 categories={categories}
                 subtopics={subtopics}
+                compact={compactMode}
               />
             </motion.div>
           )}

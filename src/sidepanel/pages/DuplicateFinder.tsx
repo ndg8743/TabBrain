@@ -2,7 +2,8 @@ import { useState, useMemo } from 'react'
 import { motion, AnimatePresence } from 'motion/react'
 import type { DuplicateGroup } from '@/types/domain'
 import { useDuplicateTabs } from '../hooks'
-import { ConfirmDialog } from '../components'
+import { ConfirmDialog, ViewModeToggle } from '../components'
+import { useViewMode } from '../context'
 
 interface DuplicateFinderProps {
   onBack: () => void
@@ -10,6 +11,7 @@ interface DuplicateFinderProps {
 
 export function DuplicateFinder({ onBack }: DuplicateFinderProps) {
   const { duplicates, loading, error, scan, closeDuplicates } = useDuplicateTabs()
+  const { compactMode } = useViewMode()
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set())
   const [showConfirm, setShowConfirm] = useState(false)
   const [closing, setClosing] = useState(false)
@@ -184,22 +186,25 @@ export function DuplicateFinder({ onBack }: DuplicateFinderProps) {
           </motion.div>
 
           {/* Quick actions */}
-          <div className="flex items-center gap-2">
-            <button
-              onClick={handleSelectAllDuplicates}
-              className="btn-ghost text-sm"
-            >
-              <SelectAllIcon className="w-4 h-4 mr-1.5" />
-              Select All ({totalDuplicates})
-            </button>
-            {selectedIds.size > 0 && (
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
               <button
-                onClick={handleClearSelection}
+                onClick={handleSelectAllDuplicates}
                 className="btn-ghost text-sm"
               >
-                Clear Selection
+                <SelectAllIcon className="w-4 h-4 mr-1.5" />
+                Select All ({totalDuplicates})
               </button>
-            )}
+              {selectedIds.size > 0 && (
+                <button
+                  onClick={handleClearSelection}
+                  className="btn-ghost text-sm"
+                >
+                  Clear Selection
+                </button>
+              )}
+            </div>
+            <ViewModeToggle />
           </div>
 
           {/* Duplicate groups */}
@@ -215,6 +220,7 @@ export function DuplicateFinder({ onBack }: DuplicateFinderProps) {
                   group={group}
                   selectedIds={selectedIds}
                   onSelectionChange={setSelectedIds}
+                  compact={compactMode}
                 />
               </motion.div>
             ))}
@@ -269,12 +275,14 @@ interface DuplicateGroupCardProps {
   group: DuplicateGroup
   selectedIds: Set<number>
   onSelectionChange: (ids: Set<number>) => void
+  compact?: boolean
 }
 
 function DuplicateGroupCard({
   group,
   selectedIds,
   onSelectionChange,
+  compact = false,
 }: DuplicateGroupCardProps) {
   const keepTab = group.tabs[0]
   const duplicateTabs = group.tabs.slice(1)
@@ -347,15 +355,15 @@ function DuplicateGroupCard({
             <div className="border-t border-surface-800">
               {/* Keep tab */}
               {keepTab && (
-                <div className="px-4 py-3 bg-emerald-500/10 border-b border-surface-800">
-                  <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-lg bg-emerald-500/20 flex items-center justify-center">
-                      <CheckIcon className="w-4 h-4 text-emerald-400" />
+                <div className={`${compact ? 'px-3 py-2' : 'px-4 py-3'} bg-emerald-500/10 border-b border-surface-800`}>
+                  <div className={`flex items-center ${compact ? 'gap-2' : 'gap-3'}`}>
+                    <div className={`${compact ? 'w-6 h-6' : 'w-8 h-8'} rounded-lg bg-emerald-500/20 flex items-center justify-center`}>
+                      <CheckIcon className={`${compact ? 'w-3 h-3' : 'w-4 h-4'} text-emerald-400`} />
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2">
                         <span className="badge-success text-[10px]">KEEP</span>
-                        <span className="text-sm text-white truncate">{keepTab.title}</span>
+                        <span className={`${compact ? 'text-xs' : 'text-sm'} text-white truncate`}>{keepTab.title}</span>
                       </div>
                     </div>
                     <span className="badge-neutral text-[10px]">
@@ -373,13 +381,13 @@ function DuplicateGroupCard({
                   animate={{ opacity: 1, x: 0 }}
                   transition={{ delay: idx * 0.02 }}
                   onClick={() => toggleTab(tab.id)}
-                  className={`px-4 py-3 flex items-center gap-3 cursor-pointer transition-colors ${
+                  className={`${compact ? 'px-3 py-2' : 'px-4 py-3'} flex items-center ${compact ? 'gap-2' : 'gap-3'} cursor-pointer transition-colors ${
                     selectedIds.has(tab.id)
                       ? 'bg-brand-500/10'
                       : 'hover:bg-surface-800/50'
                   } ${idx < duplicateTabs.length - 1 ? 'border-b border-surface-800/50' : ''}`}
                 >
-                  <div className={`w-5 h-5 rounded-md border-2 flex items-center justify-center transition-all ${
+                  <div className={`${compact ? 'w-4 h-4' : 'w-5 h-5'} rounded-md border-2 flex items-center justify-center transition-all ${
                     selectedIds.has(tab.id)
                       ? 'bg-brand-500 border-brand-500'
                       : 'border-surface-600 bg-transparent'
@@ -395,7 +403,7 @@ function DuplicateGroupCard({
                     )}
                   </div>
                   <div className="flex-1 min-w-0">
-                    <span className="text-sm text-surface-200 truncate block">{tab.title}</span>
+                    <span className={`${compact ? 'text-xs' : 'text-sm'} text-surface-200 truncate block`}>{tab.title}</span>
                   </div>
                   <span className="badge-neutral text-[10px]">
                     W{tab.windowId}

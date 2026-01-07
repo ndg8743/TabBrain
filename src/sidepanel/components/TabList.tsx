@@ -13,6 +13,7 @@ interface TabListProps {
   categories?: Map<number, string>
   subtopics?: Map<number, string | undefined>
   enableSwitchOnDoubleClick?: boolean
+  compact?: boolean
 }
 
 // Large tab lists also benefit from reduced animations regardless of FPS
@@ -40,6 +41,7 @@ export function TabList({
   categories,
   subtopics,
   enableSwitchOnDoubleClick = true,
+  compact = false,
 }: TabListProps) {
   // Use FPS-based performance detection from context, or enable for very large lists
   const { performanceMode: fpsPerformanceMode } = usePerformanceContext()
@@ -128,6 +130,7 @@ export function TabList({
                 subtopic={subtopics?.get(tab.id)}
                 enableSwitchOnDoubleClick={enableSwitchOnDoubleClick}
                 performanceMode={performanceMode}
+                compact={compact}
               />
             </div>
           ))
@@ -152,6 +155,7 @@ export function TabList({
                   subtopic={subtopics?.get(tab.id)}
                   enableSwitchOnDoubleClick={enableSwitchOnDoubleClick}
                   performanceMode={false}
+                  compact={compact}
                 />
               </motion.div>
             ))}
@@ -172,6 +176,7 @@ interface TabItemProps {
   subtopic?: string
   enableSwitchOnDoubleClick: boolean
   performanceMode: boolean
+  compact: boolean
 }
 
 function TabItem({
@@ -184,6 +189,7 @@ function TabItem({
   subtopic,
   enableSwitchOnDoubleClick,
   performanceMode,
+  compact,
 }: TabItemProps) {
   const [imgError, setImgError] = useState(false)
   const domain = getDomain(tab.url)
@@ -200,13 +206,17 @@ function TabItem({
     }
   }
 
-  const baseClasses = `
-    flex items-center gap-3 p-3 rounded-xl transition-all cursor-pointer
-    ${selected
-      ? 'bg-brand-500/10 ring-1 ring-brand-500/30'
-      : 'bg-surface-900/50 hover:bg-surface-800/70'
-    }
-  `
+  const baseClasses = compact
+    ? `flex items-center gap-2 px-2 py-1.5 rounded-lg transition-all cursor-pointer ${
+        selected
+          ? 'bg-brand-500/10 ring-1 ring-brand-500/30'
+          : 'bg-surface-900/50 hover:bg-surface-800/70'
+      }`
+    : `flex items-center gap-3 p-3 rounded-xl transition-all cursor-pointer ${
+        selected
+          ? 'bg-brand-500/10 ring-1 ring-brand-500/30'
+          : 'bg-surface-900/50 hover:bg-surface-800/70'
+      }`
 
   // Performance mode: use a simple div without motion animations
   if (performanceMode) {
@@ -241,7 +251,7 @@ function TabItem({
       <>
       {selectable && (
         <div
-          className={`w-5 h-5 rounded-md border-2 flex-shrink-0 flex items-center justify-center transition-all ${
+          className={`${compact ? 'w-4 h-4' : 'w-5 h-5'} rounded-md border-2 flex-shrink-0 flex items-center justify-center transition-all ${
             selected
               ? 'bg-brand-500 border-brand-500'
               : 'border-surface-600 bg-transparent'
@@ -264,29 +274,31 @@ function TabItem({
       )}
 
       {/* Favicon */}
-      <div className="w-5 h-5 flex-shrink-0 rounded overflow-hidden bg-surface-800">
+      <div className={`${compact ? 'w-4 h-4' : 'w-5 h-5'} flex-shrink-0 rounded overflow-hidden bg-surface-800`}>
         {tab.favIconUrl && !imgError ? (
           <img
             src={tab.favIconUrl}
             alt=""
-            className="w-5 h-5 object-cover"
+            className={`${compact ? 'w-4 h-4' : 'w-5 h-5'} object-cover`}
             onError={() => setImgError(true)}
           />
         ) : (
-          <div className="w-5 h-5 flex items-center justify-center">
-            <GlobeIcon className="w-3 h-3 text-surface-500" />
+          <div className={`${compact ? 'w-4 h-4' : 'w-5 h-5'} flex items-center justify-center`}>
+            <GlobeIcon className={`${compact ? 'w-2.5 h-2.5' : 'w-3 h-3'} text-surface-500`} />
           </div>
         )}
       </div>
 
       {/* Content */}
       <div className="flex-1 min-w-0">
-        <p className="text-sm font-medium text-white truncate">
+        <p className={`font-medium text-white truncate ${compact ? 'text-xs' : 'text-sm'}`}>
           {tab.title}
         </p>
-        <p className="text-xs text-surface-500 truncate">
-          {domain}
-        </p>
+        {!compact && (
+          <p className="text-xs text-surface-500 truncate">
+            {domain}
+          </p>
+        )}
       </div>
 
       {/* Badges */}

@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'motion/react'
 import { ErrorBoundary, ToastProvider } from './components'
-import { PerformanceProvider } from './context'
+import { PerformanceProvider, ViewModeProvider } from './context'
 import {
   Dashboard,
   DuplicateFinder,
@@ -51,9 +51,10 @@ export default function App() {
 
   return (
     <PerformanceProvider>
-      <ToastProvider>
-        <ErrorBoundary>
-          <div className="flex flex-col h-screen overflow-hidden">
+      <ViewModeProvider>
+        <ToastProvider>
+          <ErrorBoundary>
+            <div className="flex flex-col h-screen overflow-hidden">
           {/* Header */}
           <motion.header
             initial={{ y: -20, opacity: 0 }}
@@ -97,7 +98,7 @@ export default function App() {
           </motion.header>
 
           {/* Main content */}
-          <main className="flex-1 overflow-y-auto scrollbar-hide">
+          <main className="flex-1 overflow-y-auto">
             <ErrorBoundary>
               <AnimatePresence mode="wait">
                 {!hasTabsPermission ? (
@@ -111,7 +112,8 @@ export default function App() {
           </div>
         </ErrorBoundary>
       </ToastProvider>
-    </PerformanceProvider>
+    </ViewModeProvider>
+  </PerformanceProvider>
   )
 }
 
