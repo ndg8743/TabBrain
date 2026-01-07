@@ -85,7 +85,7 @@ export function CopyTabsButton({
               animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={{ opacity: 0, y: -8, scale: 0.95 }}
               transition={{ duration: 0.15 }}
-              className="absolute top-full mt-1 right-0 z-20 min-w-[140px] py-1 rounded-lg bg-surface-900 border border-surface-700 shadow-xl"
+              className="absolute bottom-full mb-1 right-0 z-50 min-w-[140px] py-1 rounded-lg bg-surface-900 border border-surface-700 shadow-xl"
             >
               {FORMATS.map((format) => (
                 <button

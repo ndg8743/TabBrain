@@ -26,7 +26,7 @@ export function DraggableWindowCard({ window, isOver, onClose }: DraggableWindow
       animate={{ opacity: 1, scale: 1 }}
       exit={{ opacity: 0, scale: 0.95 }}
       className={`
-        glass-card p-4 transition-all duration-200
+        glass-card p-4 transition-all duration-200 overflow-hidden
         ${isActive ? 'ring-2 ring-brand-500 bg-brand-500/10' : ''}
       `}
     >
