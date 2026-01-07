@@ -229,6 +229,8 @@ curl -X POST "https://gpt.hydra.newpaltz.edu/api/chat/completions" \
 - `chrome://` and `edge://` URLs are skipped
 - Some LLMs return JSON wrapped in markdown - parser handles this
 - Rate limiting: 2-3 concurrent batches max, exponential backoff on failure
+- Thinking models (DeepSeek R1, QwQ) output `<think>` tags - parser strips them
+- Uncategorized/Other tabs are skipped when creating groups to avoid lag
 
 ## Git Info
 

@@ -143,7 +143,10 @@ export class OpenAICompatibleProvider extends BaseLLMProvider {
 
   async listModels(): Promise<string[]> {
     const url = this.getModelsUrl()
+    const headers = this.getHeaders()
     logger.debug(`Fetching models from: ${url}`)
+    logger.debug(`API key present: ${Boolean(this.config.apiKey)}, key length: ${this.config.apiKey?.length ?? 0}`)
+    logger.debug(`Headers: ${JSON.stringify(Object.keys(headers))}`)
 
     try {
       const response = await fetch(url, {

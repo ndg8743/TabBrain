@@ -465,6 +465,14 @@ const handlers: Partial<Record<MessageType, MessageHandler>> = {
 
   TEST_LLM_CONNECTION: async () => {
     const config = await getLLMConfig()
+    logger.debug('TEST_LLM_CONNECTION config:', {
+      hasConfig: Boolean(config),
+      provider: config?.provider,
+      baseUrl: config?.baseUrl,
+      model: config?.model,
+      hasApiKey: Boolean(config?.apiKey),
+      apiKeyLength: config?.apiKey?.length ?? 0,
+    })
     if (!config) {
       return { success: false, error: 'Not configured' }
     }
@@ -494,6 +502,14 @@ const handlers: Partial<Record<MessageType, MessageHandler>> = {
 
   GET_AVAILABLE_MODELS: async () => {
     const config = await getLLMConfig()
+    logger.debug('GET_AVAILABLE_MODELS config:', {
+      hasConfig: Boolean(config),
+      provider: config?.provider,
+      baseUrl: config?.baseUrl,
+      model: config?.model,
+      hasApiKey: Boolean(config?.apiKey),
+      apiKeyLength: config?.apiKey?.length ?? 0,
+    })
     if (!config) {
       return { success: false, models: [], error: 'Not configured' }
     }
